@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:sqflite/sqflite.dart';
 import 'package:synchronized_call/synchronized_call.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
-abstract class BoxerTableCommon extends BoxerTableBase {
+abstract class BoxerTableTranslator extends BoxerTableBase {
   void onQuery(BoxerQueryOption options);
 
   void onDelete(BoxerQueryOption options);
@@ -91,70 +92,13 @@ abstract class BoxerTableCommon extends BoxerTableBase {
     return await super.delete(where: options.where, whereArgs: options.whereArgs);
   }
 
-  /**
-   * Wrapper Methods
-   */
-
-  /// [ModelTranslatorFromJson] use for query model, [ModelTranslatorToJson] use for insert & update model
-  static Map<Object, List> modelTranslators = {};
-
-  static void setModelTranslator<T>(
-    ModelTranslatorFromJson<T> fromJson,
-    ModelTranslatorToJson<T> toJson,
-    ModelIdentifyFields<T> uniqueFields,
-  ) {
-    modelTranslators[T] = [fromJson, toJson, uniqueFields];
-  }
-
-  static ModelTranslatorFromJson<T>? getModelTranslatorFrom<T>(ModelTranslatorFromJson<T>? fromJson) {
-    List? list = BoxerTableCommon.modelTranslators[T];
-    fromJson ??= list?.atSafe(0) as ModelTranslatorFromJson<T>?;
-    assert(fromJson != null, '❗️[$T] model\'s translator from json is null or not set/registered!');
-    return fromJson;
-  }
-
-  static ModelTranslatorToJson<T>? getModelTranslatorTo<T>(ModelTranslatorToJson<T>? toJson) {
-    List? list = BoxerTableCommon.modelTranslators[T];
-    toJson ??= list?.atSafe(1) as ModelTranslatorToJson<T>?;
-    assert(toJson != null, '❗️[$T] model\'s translator to json is null or not set/registered!');
-    return toJson;
-  }
-
-  static ModelIdentifyFields<T>? getModelIdentifyFields<T>() {
-    List? list = BoxerTableCommon.modelTranslators[T];
-    ModelIdentifyFields<T>? uniqueFieldGetter = list?.atSafe(2) as ModelIdentifyFields<T>?;
-    if (uniqueFieldGetter == null) {
-      BxLoG.d('No ModelIdentifyFields set/registered for $T');
-    }
-    return uniqueFieldGetter;
-  }
-
-  /// Low level translator for inserting/updating item, in [mInsert] & [mUpdate] method
-  InsertionTranslator? insertionTranslator;
-
-  Map<String, Object?>? toMap<T>(T? item, {InsertionTranslator<T>? translator}) {
-    if (item == null) return null;
-    /// TODO ... call [mInsertModel]/[mUpdateModel] method and not translate to OuterMap will get a crash that record in README.md
-    Map<String, Object?>? outerMap = insertionTranslator?.call(item);
-    // cover outerMap by specifiedOuterMap
-    Map<String, Object?>? specifiedOuterMap = translator?.call(item);
-    if (specifiedOuterMap != null) {
-      outerMap?.addAll(specifiedOuterMap);
-    }
-    // item is the result if needed
-    if (outerMap == null && item is Map) {
-      outerMap = item is Map<String, Object?> ? item : Map<String, Object?>.from(item); // outerMap = item.cast<String, Object?>();
-    }
-    return outerMap;
-  }
-
   /** Query **/
 
   /// [mQueryAsModels] based on a Json-Object (Map or List)
   ///
   /// [fromJson] is the function that tell to callee how to translate result to model object
   Future<List<T>> mQueryAsModels<T>({ModelTranslatorFromJson<T>? fromJson, BoxerQueryOption? options}) async {
-    ModelTranslatorFromJson<T>? translate = BoxerTableCommon.getModelTranslatorFrom(fromJson);
+    ModelTranslatorFromJson<T>? translate = BoxerTableTranslator.getModelTranslatorFrom(fromJson);
     if (translate == null) return [];
     return (await mQueryAsMap(options: options)).map((e) => translate(e)).toList();
   }
@@ -170,8 +114,8 @@ abstract class BoxerTableCommon extends BoxerTableBase {
       try {
         result = string.isNotEmpty ? json.decode(string) as T : null;
       } catch (e, s) {
-        BxLoG.d('query as json decode error: $e, $s');
-        boxer?.reportError(e, s);
+        BxLoG.d('❗️❗️❗️ERROR: query as json decode error: $e, $s');
+        rethrow;
       }
       return result ?? (T.toString() == [].runtimeType.toString() ? [] : {}) as T;
     }).toList();
@@ -204,21 +148,13 @@ abstract class BoxerTableCommon extends BoxerTableBase {
 
   /** Insert **/
 
-  /// capacity checking only in [mInserts] method
-  int? insertionCapacity;
-
-  /// handler for caller when reached the maximum capacity
-  bool Function()? insertionCapacityHandler;
+  /// handler for caller when reached the maximum capacity or other situation you want to break
+  FutureOr<bool> Function()? insertionsBreakHandler;
 
   Future<List<int>?> mInserts<T>(List<T> items, {InsertionTranslator<T>? translator}) async {
-    // Limit the number of entries to a specified capacity to avoid infinite insertion
-    int? capacity = insertionCapacity;
-    if (capacity != null && (await selectCount() ?? 0) > capacity) {
-      BxLoG.d('$tableName insert exceed limits capacity $capacity !');
-      if (insertionCapacityHandler?.call() != true) {
-        BxLoG.d('$tableName insert failed cause limits capacity $capacity !');
-        return null;
-      }
+    if ((await insertionsBreakHandler?.call()) == true) {
+      BxLoG.d('$tableName insert bulk items broken, cause the [insertionsBreakHandler] return true!');
+      return null;
     }
 
     /// Do list iteration to insert
@@ -229,12 +165,13 @@ abstract class BoxerTableCommon extends BoxerTableBase {
         insertedIds.add(identifier);
       }
     }
+    BxLoG.d('Inserted items ids is: $insertedIds');
     return insertedIds;
   }
 
   /// T?, ? is needed
   Future<int> mInsertModel<T>(T? model, {ModelTranslatorToJson<T>? toJson, InsertionTranslator<T>? translator}) async {
-    ModelTranslatorToJson<T>? translate = BoxerTableCommon.getModelTranslatorTo(toJson);
+    ModelTranslatorToJson<T>? translate = BoxerTableTranslator.getModelTranslatorTo(toJson);
     if (translate == null || model == null) return -1;
 
     InsertionTranslator<Map<String, Object?>>? tr;
@@ -258,7 +195,7 @@ abstract class BoxerTableCommon extends BoxerTableBase {
 
   /// T?, ? is needed
   Future<int> mUpdateModel<T>(T? model, {ModelTranslatorToJson<T>? toJson, BoxerQueryOption? options}) async {
-    ModelTranslatorToJson<T>? translate = BoxerTableCommon.getModelTranslatorTo(toJson);
+    ModelTranslatorToJson<T>? translate = BoxerTableTranslator.getModelTranslatorTo(toJson);
     if (translate == null || model == null) return -1;
 
     if (options == null) {
@@ -275,6 +212,64 @@ abstract class BoxerTableCommon extends BoxerTableBase {
     assert(map != null, 'Values(${item.runtimeType}) that updating to table should be a map.');
     if (map == null) return -1;
     return await update(map, options: options, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /**
+   * Wrap Methods
+   */
+
+  /// [ModelTranslatorFromJson] use for query model, [ModelTranslatorToJson] use for insert & update model
+  static Map<Object, List> modelTranslators = {};
+
+  static void setModelTranslator<T>(
+    ModelTranslatorFromJson<T> fromJson,
+    ModelTranslatorToJson<T> toJson,
+    ModelIdentifyFields<T> uniqueFields,
+  ) {
+    modelTranslators[T] = [fromJson, toJson, uniqueFields];
+  }
+
+  static ModelTranslatorFromJson<T>? getModelTranslatorFrom<T>(ModelTranslatorFromJson<T>? fromJson) {
+    List? list = BoxerTableTranslator.modelTranslators[T];
+    fromJson ??= list?.atSafe(0) as ModelTranslatorFromJson<T>?;
+    assert(fromJson != null, '❗️[$T] model\'s translator from json is null or not set/registered!');
+    return fromJson;
+  }
+
+  static ModelTranslatorToJson<T>? getModelTranslatorTo<T>(ModelTranslatorToJson<T>? toJson) {
+    List? list = BoxerTableTranslator.modelTranslators[T];
+    toJson ??= list?.atSafe(1) as ModelTranslatorToJson<T>?;
+    assert(toJson != null, '❗️[$T] model\'s translator to json is null or not set/registered!');
+    return toJson;
+  }
+
+  static ModelIdentifyFields<T>? getModelIdentifyFields<T>() {
+    List? list = BoxerTableTranslator.modelTranslators[T];
+    ModelIdentifyFields<T>? uniqueFieldGetter = list?.atSafe(2) as ModelIdentifyFields<T>?;
+    if (uniqueFieldGetter == null) {
+      BxLoG.d('No ModelIdentifyFields set/registered for $T');
+    }
+    return uniqueFieldGetter;
+  }
+
+  /// Low level translator for inserting/updating item, in [mInsert] & [mUpdate] method
+  InsertionTranslator? insertionTranslator;
+
+  Map<String, Object?>? toMap<T>(T? item, {InsertionTranslator<T>? translator}) {
+    if (item == null) return null;
+
+    /// TODO ... call [mInsertModel]/[mUpdateModel] method and not translate to OuterMap will get a crash that record in README.md
+    Map<String, Object?>? outerMap = insertionTranslator?.call(item);
+    // cover outerMap by specifiedOuterMap
+    Map<String, Object?>? specifiedOuterMap = translator?.call(item);
+    if (specifiedOuterMap != null) {
+      outerMap?.addAll(specifiedOuterMap);
+    }
+    // item is the result if needed
+    if (outerMap == null && item is Map) {
+      outerMap = item is Map<String, Object?> ? item : Map<String, Object?>.from(item); // outerMap = item.cast<String, Object?>();
+    }
+    return outerMap;
   }
 
   /**
@@ -312,7 +307,7 @@ abstract class BoxerTableCommon extends BoxerTableBase {
     /// Using batch
     if (syncType == BatchSyncType.BATCH) {
       return await doBatch((clone) {
-        clone as BoxerTableCommon;
+        clone as BoxerTableTranslator;
         clone.clear(option);
         clone.mInserts<T>(items, translator: translator);
       });
@@ -321,7 +316,7 @@ abstract class BoxerTableCommon extends BoxerTableBase {
     /// Using the transaction
     if (syncType == BatchSyncType.TRANSACTION) {
       return await doTransaction((clone) async {
-        clone as BoxerTableCommon;
+        clone as BoxerTableTranslator;
         await clone.clear(option);
         return await clone.mInserts<T>(items, translator: translator);
       });
@@ -334,12 +329,14 @@ abstract class BoxerTableCommon extends BoxerTableBase {
   }
 }
 
+enum BatchSyncType { LOCK, BATCH, TRANSACTION }
+
+/// insert or update, translate to item to Map
 typedef InsertionTranslator<T> = Map<String, Object?> Function(T e);
 
+/// function toJson/fromJson/id_fields for Model class
 typedef ModelTranslatorToJson<T> = Map Function(T e);
 
 typedef ModelTranslatorFromJson<T> = T Function(Map e);
 
 typedef ModelIdentifyFields<T> = Map<String, dynamic> Function(T e);
-
-enum BatchSyncType { LOCK, BATCH, TRANSACTION }

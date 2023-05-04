@@ -1,6 +1,7 @@
 import 'package:example/common/widget/box_tab_bar.dart';
-import 'package:example/page/all_tables_page.dart';
-import 'package:example/page/sqlite_master_paget.dart';
+import 'package:example/page/page_all_tables.dart';
+import 'package:example/page/page_api_cache.dart';
+import 'package:example/page/page_sqlite_master.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
@@ -16,9 +17,9 @@ class AppState extends State<App> with SingleTickerProviderStateMixin {
 
   TabController? tabController;
 
-  List<String> get tabTitles => ['all tables', 'sqlite_master'];
+  List<String> get tabTitles => ['all_tables', 'fake_api', 'sqlite_master'];
 
-  List<Widget> get tabPages => [AllTablesPage(), SqliteMasterPage()];
+  List<Widget> get tabPages => [PageAllTables(), PageApiCache(), PageSqliteMaster()];
 
   @override
   void initState() {

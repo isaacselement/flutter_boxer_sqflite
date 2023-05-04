@@ -56,7 +56,7 @@ abstract class BoxerTableBase {
     }
     for (String sql in strings) {
       try {
-        BxLoG.d('onCreateTable execute: $sql');
+        BxLoG.d('onCreateTable execute sql: $sql');
         await db.execute(sql);
       } catch (e, s) {
         BxLoG.d('onCreateTable error: $e, $s');
@@ -79,7 +79,7 @@ abstract class BoxerTableBase {
 
   BoxerTableBase? clone() => null;
 
-  /// Execute all sql in a transaction. See [BoxerTableCommon.resetWithItems] for example usage
+  /// Execute all sql in a transaction. See [BoxerTableTranslator.resetWithItems] for example usage
   Future<T?> doTransaction<T>(Future<T?> Function(BoxerTableBase clone) action, {bool? exclusive}) {
     return database.transaction<T?>((transaction) async {
       BoxerTableBase? clone = this.clone()?..database = database;
@@ -90,7 +90,7 @@ abstract class BoxerTableBase {
     }, exclusive: exclusive);
   }
 
-  /// Execute all sql in a batch(actually transaction).  See [BoxerTableCommon.resetWithItems] for example usage
+  /// Execute all sql in a batch(essentially transaction).  See [BoxerTableTranslator.resetWithItems] for example usage
   Future<List<Object?>?> doBatch(void Function(BoxerTableBase clone) action, {bool? exclusive}) async {
     BoxerTableBase? clone = this.clone()?..database = database;
     assert(clone != null, '❗️❗️❗️It is better to implement the clone() method if u want use batch & transaction');

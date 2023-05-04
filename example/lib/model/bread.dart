@@ -1,12 +1,12 @@
 import 'dart:convert';
-
 import 'dart:math';
 
+import 'package:example/common/util/date_util.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
 
 class Bread {
   final int? breadId;
-  final String? breadUuid;
+  final String? uuid;
   final String? breadType;
   String? breadContent;
   String? breadUpdateTime;
@@ -16,7 +16,7 @@ class Bread {
   Bread.fromJson(Map json)
       : //
         breadId = json['breadId'],
-        breadUuid = json['breadUuid'],
+        uuid = json['uuid'],
         breadType = json['breadType'],
         breadContent = json['breadContent'],
         breadUpdateTime = json['breadUpdateTime'],
@@ -25,7 +25,7 @@ class Bread {
 
   Map<String, dynamic> toJson() => {
         'breadId': breadId,
-        'breadUuid': breadUuid,
+        'uuid': uuid,
         'breadType': breadType,
         'breadContent': breadContent,
         'breadUpdateTime': breadUpdateTime,
@@ -60,16 +60,21 @@ class BreadFake {
   static int breadSeq = 0;
   static int breadTagId = 0;
 
-  static Bread get oneModel => Bread.fromJson(oneMap);
+  static Bread get oneModel => Bread.fromJson(oneMap());
 
-  static Map<String, Object?> get oneMap => Map.from(
+  static Map<String, Object?> oneMap({
+    String? content,
+    DateTime? updateTime,
+    DateTime? createTime,
+  }) =>
+      Map.from(
         {
           "breadId": DateTime.now().millisecondsSinceEpoch,
-          "breadUuid": '${breadSeq++}${StringsUtils.fakeUUID()}',
+          "uuid": '${breadSeq++}${StringsUtils.fakeUUID()}',
           "breadType": Random().nextBool() ? "voice" : "common",
-          "breadContent": "You are so handsome!!!!!",
-          "breadUpdateTime": "2023-04-01 00:00:00",
-          "breadCreateTime": "2023-03-03 00:00:00",
+          "breadContent": content ?? "You are so handsome!!!!!",
+          "breadUpdateTime": updateTime != null ? DateUtil.format(updateTime) : "2023-04-01 00:00:00",
+          "breadCreateTime": createTime != null ? DateUtil.format(createTime) : "2023-03-03 00:00:00",
           "breadTagList": [
             {"tagId": breadTagId++, "tagName": "最新", "tagFlag": "newest"},
             {"tagId": breadTagId++, "tagName": "头条", "tagFlag": "headline"},

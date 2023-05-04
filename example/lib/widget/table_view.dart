@@ -23,7 +23,11 @@ class TableView extends StatefulWidget {
   /// ScrollController for list view
   final ScrollController? scrollController;
 
+  /// Widget height
   final double? height;
+
+  /// Show sequence number
+  final bool isShowSeq;
 
   TableView({
     Key? key,
@@ -33,6 +37,7 @@ class TableView extends StatefulWidget {
     required this.rowsResults,
     this.scrollController,
     this.height = 200,
+    this.isShowSeq = false,
   }) : super(key: key);
 
   @override
@@ -56,6 +61,7 @@ class TableViewState extends State<TableView> {
   @override
   Widget build(BuildContext context) {
     /// Column per width
+    double kColumnSeqWidth = 38;
     double kColumnMinWidth = 80;
     double kColumnDividerWidth = 1;
 
@@ -69,7 +75,11 @@ class TableViewState extends State<TableView> {
       for (String name in widget.columnNames) {
         width += everyColumnWidth(name);
       }
-      return width + (widget.columnNames.length - 1) * kColumnDividerWidth;
+      double result = width + (widget.columnNames.length - 1) * kColumnDividerWidth;
+      if (widget.isShowSeq) {
+        result = result + kColumnSeqWidth + kColumnDividerWidth;
+      }
+      return result;
     }
 
     /// if width is enough
@@ -109,17 +119,35 @@ class TableViewState extends State<TableView> {
 
     Widget oneTableWidget = Btw(
       builder: (context) {
+        Widget getOneHeaderElement({required String name, required double width}) {
+          return Container(
+            width: width,
+            padding: EdgeInsets.all(8),
+            alignment: Alignment.center,
+            child: Text(name, style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold)),
+          );
+        }
+
+        Widget getOneRowElement({required String name, required String value, required double width}) {
+          return Container(
+            height: 25,
+            width: width,
+            alignment: Alignment.center,
+            child: Text(
+              value,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+            ),
+          );
+        }
+
         /// Build a header
         List<Widget> headerSubViews = [];
         for (String name in widget.columnNames) {
           Widget w = Stack(
             children: [
-              Container(
-                width: everyColumnWidth(name),
-                padding: EdgeInsets.all(8),
-                alignment: Alignment.center,
-                child: Text(name, style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold)),
-              ),
+              getOneHeaderElement(name: name, width: everyColumnWidth(name)),
+              // draggable, for expanding the width of column
               Positioned(
                 top: 0,
                 right: 0,
@@ -139,6 +167,9 @@ class TableViewState extends State<TableView> {
           );
           headerSubViews.add(w);
         }
+        if (widget.isShowSeq) {
+          headerSubViews.insert(0, getOneHeaderElement(name: 'Seq', width: kColumnSeqWidth));
+        }
         Widget divider = Container(width: kColumnDividerWidth, height: 20, color: Colors.grey.withAlpha(64));
         headerSubViews.joinIn(divider);
         Widget headerWidget = Row(children: headerSubViews);
@@ -154,16 +185,7 @@ class TableViewState extends State<TableView> {
               Map<String, Object?> map = widget.rowsResults[index];
               List<String> keys = map.keys.toList();
               List<Widget> rowChildren = keys
-                  .map((name) => Container(
-                        height: 25,
-                        width: everyColumnWidth(name),
-                        alignment: Alignment.center,
-                        child: Text(
-                          map[name]?.toString() ?? 'NULL',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                      ))
+                  .map((name) => getOneRowElement(name: name, value: map[name]?.toString() ?? 'NULL', width: everyColumnWidth(name)))
                   .toList();
               return Listener(
                 onPointerDown: (e) => selectIndex.value = index,
@@ -174,10 +196,14 @@ class TableViewState extends State<TableView> {
                       DialogWrapper.showCenter(WidgetUtil.newEditBox(controller: textEditingController));
                     },
                     child: Container(
-                      child: Row(children: rowChildren),
+                      child: Row(children: [
+                        if (widget.isShowSeq) getOneRowElement(name: '', value: '$index', width: kColumnSeqWidth),
+                        ...rowChildren,
+                      ]),
                       decoration: BoxDecoration(
-                          color: selectIndex.value == index ? Colors.grey.withAlpha(128) : Colors.white,
-                          border: Border(bottom: BorderSide(color: Colors.grey.withAlpha(32), width: 1))),
+                        color: selectIndex.value == index ? Colors.grey.withAlpha(128) : Colors.white,
+                        border: Border(bottom: BorderSide(color: Colors.grey.withAlpha(32), width: 1)),
+                      ),
                     ),
                   ),
                 ),

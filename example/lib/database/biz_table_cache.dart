@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
-class BizTableCache extends BoxerTableCommon {
+class BizTableCache extends BoxerTableTranslator {
   static const String kCOLUMN_ID = 'ID';
   static const String kCOLUMN_TYPE = 'TYPE';
   static const String kCOLUMN_ITEM_ID = 'ITEM_ID';
@@ -22,8 +22,16 @@ class BizTableCache extends BoxerTableCommon {
 
   BizTableCache({required String tableName}) : super() {
     _tableName = tableName;
-    insertionCapacity = 5000;
-    insertionCapacityHandler = () => false;
+
+    insertionsBreakHandler = () async {
+      // Limit the number of entries to a specified capacity to avoid infinite insertion
+      int? capacity = 5000;
+      if ((await selectCount() ?? 0) > capacity) {
+        BxLoG.d('$tableName insert exceed limits capacity $capacity !');
+        return true;
+      }
+      return false;
+    };
 
     queryAsTranslator = (Map<String, Object?> element) {
       Object? value = element[kCOLUMN_ITEM_VALUE];
@@ -73,7 +81,9 @@ class BizTableCache extends BoxerTableCommon {
       '$kCOLUMN_ROLE_ID INTEGER, '
       // extra create sql something like `CREATE INDEX ...`
       ';'
-      'CREATE UNIQUE INDEX IF NOT EXISTS Uq_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
+      'CREATE INDEX IF NOT EXISTS Idx_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
+
+  // 'CREATE UNIQUE INDEX IF NOT EXISTS Uq_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
 
   @override
   BoxerTableBase? clone() => BizTableCache(tableName: this.tableName);

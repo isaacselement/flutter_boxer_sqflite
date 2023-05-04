@@ -16,8 +16,7 @@ void main() {
   });
 
   group('raw', () {
-
-    test('int filled with zero?', (){
+    test('int filled with zero?', () {
       int timestamp = DateTime.now().millisecondsSinceEpoch;
       String mHex = timestamp.toRadixString(16);
       mHex = mHex.length % 2 != 0 ? '0$mHex' : mHex;
@@ -27,6 +26,5 @@ void main() {
       Uint64List uint64list = Uint64List.fromList(list);
       print('debug and set a breakpoint here for inspecting. ');
     });
-
   });
 }

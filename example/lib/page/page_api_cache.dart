@@ -1,4 +1,7 @@
 import 'package:example/database/biz_database_manager.dart';
+import 'package:example/database/biz_table_hanlder.dart';
+import 'package:example/database/biz_table_manager.dart';
+import 'package:example/model/bread_api.dart';
 import 'package:example/widget/table_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -6,14 +9,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
 import 'package:synchronized_call/synchronized_call.dart';
 
-class SqliteMasterPage extends StatefulWidget {
-  SqliteMasterPage({Key? key}) : super(key: key);
+class PageApiCache extends StatefulWidget {
+  PageApiCache({Key? key}) : super(key: key);
 
   @override
-  SqliteMasterPageState createState() => SqliteMasterPageState();
+  PageApiCacheState createState() => PageApiCacheState();
 }
 
-class SqliteMasterPageState extends State<SqliteMasterPage> with WidgetsBindingObserver {
+class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver {
   Widget allTableWidgets = Column();
 
   Map<String, ScrollController> listScrollControllers = {};
@@ -23,7 +26,7 @@ class SqliteMasterPageState extends State<SqliteMasterPage> with WidgetsBindingO
   void initState() {
     super.initState();
     Boxes.getWidgetsBinding().addObserver(this);
-    refresh();
+    refreshDataSource();
   }
 
   @override
@@ -34,12 +37,7 @@ class SqliteMasterPageState extends State<SqliteMasterPage> with WidgetsBindingO
 
   @override
   void didChangeMetrics() {
-    refreshTablesUI();
-  }
-
-  Future<void> refresh() async {
-    await refreshDataSource();
-    refreshTablesUI();
+    refreshTablesUIOnly();
   }
 
   static const String kTbName = 'tbl_name';
@@ -54,21 +52,48 @@ class SqliteMasterPageState extends State<SqliteMasterPage> with WidgetsBindingO
 
   Future<void> _refreshDataSourceRaw() async {
     await BizDatabaseManager.init();
-    datasource.clear();
+
+    Map<String, dynamic>? map = {};
 
     /// show sqlite_master
-    String tableName = 'sqlite_master';
-    List<Map<String, Object?>> rowsResults = await BizDatabaseManager.db.database.rawQuery("SELECT * FROM $tableName");
-    Map<String, dynamic>? map = {};
-    map[kTbName] = tableName;
-    map[kTbColumns] = ['type', 'name', 'tbl_name', 'rootpage', 'sql'];
-    map[kTbRowCount] = rowsResults.length;
-    map[kTbRowResults] = rowsResults;
-    datasource.add(map);
-    listScrollControllers[tableName] ??= ScrollController();
+    String tableName = BizTableManager.kNAME_ARTICLE_LIST;
+
+    Future<List<dynamic>> cacheResultsFuture = BizTableArticleList.getArticleList('newest');
+    Future<List<dynamic>> cacheFuture = Future.delayed(Duration(milliseconds: 1000), () => cacheResultsFuture);
+    // Future<List<dynamic>> cacheFuture = Future.delayed(Duration(milliseconds: 5000), () => cacheResultsFuture);
+    Future<List<dynamic>> apiListFuture = BreadApi.getList();
+    SqlCacheHandler.getData<List<dynamic>>(
+      cacheFuture: cacheFuture,
+      requestFuture: apiListFuture,
+      updateCache: (value) {
+        BizTableArticleList.updateArticleList(value, 'newest');
+      },
+      updateView: (value, isFromCache) {
+        datasource.clear();
+
+        List<dynamic> rowsResults = value;
+        map[kTbName] = tableName;
+        map[kTbColumns] = [
+          'breadId',
+          'uuid',
+          'breadType',
+          'breadContent',
+          'breadUpdateTime',
+          'breadCreateTime',
+          'breadTagList',
+        ];
+        map[kTbRowCount] = rowsResults.length;
+        map[kTbRowResults] = rowsResults;
+
+        datasource.add(map);
+        listScrollControllers[tableName] ??= ScrollController();
+
+        refreshTablesUIOnly();
+      },
+    );
   }
 
-  Future<void> refreshTablesUI() async {
+  Future<void> refreshTablesUIOnly() async {
     List<Widget> oneTableColumnChildren = [];
     for (int i = 0; i < datasource.length; i++) {
       Map<String, dynamic> map = datasource[i];
@@ -76,18 +101,21 @@ class SqliteMasterPageState extends State<SqliteMasterPage> with WidgetsBindingO
 
       Widget oneTableWidget = TableView(
         tableName: tableName,
-        columnNames: map[kTbColumns],
+        columnNames: List<String>.from(map[kTbColumns]),
         rowsCount: map[kTbRowCount],
-        rowsResults: map[kTbRowResults],
+        rowsResults: List<Map<String, Object?>>.from(map[kTbRowResults]),
         scrollController: listScrollControllers[tableName],
         height: 600,
+        isShowSeq: true,
       );
       oneTableColumnChildren.add(oneTableWidget);
     }
 
     oneTableColumnChildren.add(SizedBox(height: 38));
     allTableWidgets = Column(children: oneTableColumnChildren);
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override

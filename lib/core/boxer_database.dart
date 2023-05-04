@@ -114,7 +114,7 @@ class BoxerDatabase {
 
   T? getTable<T extends BoxerTableBase>(String name) => namedTables[name] as T?;
 
-  void registerTable(String name, BoxerTableBase table) => namedTables[name] = table;
+  void registerTable(BoxerTableBase table, {String? name}) => namedTables[name ?? table.tableName] = table;
 
   List<BoxerTableBase> get tables => namedTables.entries.map((e) => e.value).toList();
 
