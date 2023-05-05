@@ -1,10 +1,10 @@
 import 'package:example/database/biz_table_cache.dart';
-import 'package:example/database/biz_table_manager.dart';
+import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
 /// DB 管理者
-class BizDatabaseManager {
+class BoxDatabaseManager {
   /// 当数据库的表设计有更新, 则更新此版本号
   static int version = 1;
 
@@ -24,10 +24,10 @@ class BizDatabaseManager {
     };
 
     /// 注册各个表实例
-    boxer.registerTable(BizTableManager.articleListTable);
-    boxer.registerTable(BizTableManager.articleTitleTable);
-    boxer.registerTable(BizTableManager.articleStatusTable);
-    boxer.registerTable(BizTableManager.favoriteToolsTable);
+    boxer.registerTable(BoxTableManager.articleListTable);
+    boxer.registerTable(BoxTableManager.articleTitleTable);
+    boxer.registerTable(BoxTableManager.articleStatusTable);
+    boxer.registerTable(BoxTableManager.favoriteToolsTable);
 
     /// 打开并连接数据库
     await boxer.open();

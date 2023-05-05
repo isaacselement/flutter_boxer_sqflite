@@ -1,4 +1,4 @@
-import 'package:example/database/biz_database_manager.dart';
+import 'package:example/database/box_database_manager.dart';
 import 'package:example/widget/table_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -53,14 +53,14 @@ class PageSqliteMasterState extends State<PageSqliteMaster> with WidgetsBindingO
   }
 
   Future<void> _refreshDataSourceRaw() async {
-    await BizDatabaseManager.init();
+    await BoxDatabaseManager.init();
     datasource.clear();
 
     Map<String, dynamic>? map = {};
 
     /// show sqlite_master
     String tableName = 'sqlite_master';
-    List<Map<String, Object?>> rowsResults = await BizDatabaseManager.boxer.database.rawQuery("SELECT * FROM $tableName");
+    List<Map<String, Object?>> rowsResults = await BoxDatabaseManager.boxer.database.rawQuery("SELECT * FROM $tableName");
     map[kTbName] = tableName;
     map[kTbColumns] = ['type', 'name', 'tbl_name', 'rootpage', 'sql'];
     map[kTbRowCount] = rowsResults.length;

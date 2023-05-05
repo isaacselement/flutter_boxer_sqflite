@@ -81,9 +81,8 @@ class BizTableCache extends BoxerTableTranslator {
       '$kCOLUMN_ROLE_ID INTEGER, '
       // extra create sql something like `CREATE INDEX ...`
       ';'
+      // 'CREATE UNIQUE INDEX IF NOT EXISTS Uq_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
       'CREATE INDEX IF NOT EXISTS Idx_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
-
-  // 'CREATE UNIQUE INDEX IF NOT EXISTS Uq_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
 
   @override
   BoxerTableBase? clone() => BizTableCache(tableName: this.tableName);

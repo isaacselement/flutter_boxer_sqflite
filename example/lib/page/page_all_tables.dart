@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:example/common/util/date_util.dart';
-import 'package:example/database/biz_database_manager.dart';
+import 'package:example/database/box_database_manager.dart';
 import 'package:example/database/biz_table_cache.dart';
-import 'package:example/database/biz_table_manager.dart';
+import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread.dart';
 import 'package:example/widget/table_view.dart';
 import 'package:flutter/cupertino.dart';
@@ -64,14 +64,14 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
   }
 
   Future<void> _refreshDataSourceRaw() async {
-    await BizDatabaseManager.init();
+    await BoxDatabaseManager.init();
     datasource.clear();
-    await BizDatabaseManager.boxer.iterateAllTables((tableName, columns) async {
+    await BoxDatabaseManager.boxer.iterateAllTables((tableName, columns) async {
       Map<String, dynamic>? map = {};
 
       /// Row count for table
-      int? rowsCount = await BizDatabaseManager.boxer.selectCount(tableName);
-      List<Map<String, Object?>> rowsResults = await BizDatabaseManager.boxer.database.query(tableName);
+      int? rowsCount = await BoxDatabaseManager.boxer.selectCount(tableName);
+      List<Map<String, Object?>> rowsResults = await BoxDatabaseManager.boxer.database.query(tableName);
 
       /// Update to datasource
       map[kTbName] = tableName;
@@ -124,8 +124,8 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
               CupertinoButton(
                 child: Text('Get all', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
-                  List<Map> results = await BizTableManager.articleListTable.mQueryAsMap();
-                  List<Bread> breads = await BizTableManager.articleListTable.mQueryAsModels<Bread>(fromJson: (e) => Bread.fromJson(e));
+                  List<Map> results = await BoxTableManager.articleListTable.mQueryAsMap();
+                  List<Bread> breads = await BoxTableManager.articleListTable.mQueryAsModels<Bread>(fromJson: (e) => Bread.fromJson(e));
                   BxLoG.d('--------->>>>> query all as map: ${json.encode(results)}');
                   BxLoG.d('--------->>>>> query all as breads: $breads');
                 },
@@ -133,30 +133,30 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
               CupertinoButton(
                 child: Text('Clear & Reset auto id', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
-                  await BizTableManager.articleListTable.clear();
-                  await BizTableManager.articleListTable.resetAutoId();
+                  await BoxTableManager.articleListTable.clear();
+                  await BoxTableManager.articleListTable.resetAutoId();
                   refreshDataSourceWithScrollToBottom();
                 },
               ),
               CupertinoButton(
                 child: Text('Insert one', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
-                  int rowId = await BizTableManager.articleListTable.mInsert<Map>(BreadFake.oneMap(), translator: (e) {
-                    Map<String, Object?> map = BizTableManager.articleListTable.insertionTranslator!.call(e);
+                  int rowId = await BoxTableManager.articleListTable.mInsert<Map>(BreadFake.oneMap(), translator: (e) {
+                    Map<String, Object?> map = BoxTableManager.articleListTable.insertionTranslator!.call(e);
                     map[BizTableCache.kCOLUMN_TYPE] = 'newest';
                     // map[BizTableCache.kCOLUMN_ITEM_ID] = e['uuid'];
                     return map;
                   });
                   BxLoG.d('--------->>>>> inserted id Map: $rowId');
 
-                  int insertRowId0 = await BizTableManager.articleListTable.mInsertModel<Bread>(BreadFake.oneModel);
-                  int insertRowId1 = await BizTableManager.articleListTable.mInsertModel<Bread>(
+                  int insertRowId0 = await BoxTableManager.articleListTable.mInsertModel<Bread>(BreadFake.oneModel);
+                  int insertRowId1 = await BoxTableManager.articleListTable.mInsertModel<Bread>(
                     BreadFake.oneModel,
                     translator: (e) => {BizTableCache.kCOLUMN_TYPE: 'headline'},
                   );
                   BxLoG.d('--------->>>>> inserted id Bread Model: $insertRowId0, $insertRowId1');
 
-                  refreshDataSourceWithScrollToBottom(BizTableManager.kNAME_ARTICLE_LIST);
+                  refreshDataSourceWithScrollToBottom(BoxTableManager.kNAME_ARTICLE_LIST);
                 },
               ),
               CupertinoButton(
@@ -169,12 +169,12 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                   // List<Map<String, Object?>> result = await tbl.database.rawQuery('select * from $name');
                   // BxLoG.d('======= $result');
 
-                  Bread? bread = (await BizTableManager.articleListTable.mQueryAsModels(fromJson: (e) => Bread.fromJson(e))).firstSafe;
+                  Bread? bread = (await BoxTableManager.articleListTable.mQueryAsModels(fromJson: (e) => Bread.fromJson(e))).firstSafe;
                   bread?.breadContent = '${DateUtil.format(DateTime.now())}: Yes, i agree~~~~~~~ 👠⌘🎒👠❗️';
                   // int updateCount = await BizTableManager.articleListTable.mUpdateModel(bread, options: BoxerQueryOption.eq(columns: [BizTableCache.kCOLUMN_ITEM_ID], values: [bread?.uuid]));
-                  int updateCount = await BizTableManager.articleListTable.mUpdateModel(bread);
+                  int updateCount = await BoxTableManager.articleListTable.mUpdateModel(bread);
                   BxLoG.d('--------->>>>> model updated count: $updateCount');
-                  refreshDataSourceWithScrollToBottom(BizTableManager.kNAME_ARTICLE_LIST);
+                  refreshDataSourceWithScrollToBottom(BoxTableManager.kNAME_ARTICLE_LIST);
                 },
               ),
               CupertinoButton(
@@ -212,14 +212,14 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
   void doReset(BatchSyncType? batchSyncType) {
     Future<void> doClearUpdate() async {
       List<Map> items = [BreadFake.oneMap(), BreadFake.oneMap(), BreadFake.oneMap(), BreadFake.oneMap()];
-      List<Object?>? insertionIds = await BizTableManager.articleListTable.resetWithItems<Map>(items, translator: (e) {
-        Map<String, Object?> map = BizTableManager.articleListTable.insertionTranslator!.call(e);
+      List<Object?>? insertionIds = await BoxTableManager.articleListTable.resetWithItems<Map>(items, translator: (e) {
+        Map<String, Object?> map = BoxTableManager.articleListTable.insertionTranslator!.call(e);
         map[BizTableCache.kCOLUMN_TYPE] = 'force_read';
         map[BizTableCache.kCOLUMN_ITEM_ID] = e['uuid'];
         return map;
       }, syncType: batchSyncType);
       BxLoG.d('--->>>>> $batchSyncType insertion ids: $insertionIds');
-      refreshDataSourceWithScrollToBottom(BizTableManager.kNAME_ARTICLE_LIST);
+      refreshDataSourceWithScrollToBottom(BoxTableManager.kNAME_ARTICLE_LIST);
     }
 
     for (int i = 0; i < 5; i++) doClearUpdate();

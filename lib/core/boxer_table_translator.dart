@@ -115,7 +115,7 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
         result = string.isNotEmpty ? json.decode(string) as T : null;
       } catch (e, s) {
         BxLoG.d('❗️❗️❗️ERROR: query as json decode error: $e, $s');
-        rethrow;
+        // rethrow;
       }
       return result ?? (T.toString() == [].runtimeType.toString() ? [] : {}) as T;
     }).toList();
@@ -173,15 +173,14 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
   Future<int> mInsertModel<T>(T? model, {ModelTranslatorToJson<T>? toJson, InsertionTranslator<T>? translator}) async {
     ModelTranslatorToJson<T>? translate = BoxerTableTranslator.getModelTranslatorTo(toJson);
     if (translate == null || model == null) return -1;
-
-    InsertionTranslator<Map<String, Object?>>? tr;
-    Map<String, dynamic>? keyValues = getModelIdentifyFields<T>()?.call(model);
-    if (keyValues != null) {
-      tr = (e) => keyValues..addAll(translator?.call(model) ?? {});
-    }
-
     Map<String, Object?> values = Map<String, Object?>.from(translate(model));
-    return await mInsert(values, translator: tr);
+
+    InsertionTranslator<Map<String, Object?>>? mapTr = (e) => translator?.call(model) ?? {};
+    Map<String, dynamic>? fields = getModelIdentifyFields<T>()?.call(model);
+    if (fields != null && fields.isNotEmpty) {
+      mapTr = (e) => fields..addAll(translator?.call(model) ?? {});
+    }
+    return await mInsert(values, translator: mapTr);
   }
 
   Future<int> mInsert<T>(T? item, {InsertionTranslator<T>? translator}) async {
@@ -197,13 +196,12 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
   Future<int> mUpdateModel<T>(T? model, {ModelTranslatorToJson<T>? toJson, BoxerQueryOption? options}) async {
     ModelTranslatorToJson<T>? translate = BoxerTableTranslator.getModelTranslatorTo(toJson);
     if (translate == null || model == null) return -1;
-
-    if (options == null) {
-      Map<String, dynamic>? keyValues = getModelIdentifyFields<T>()?.call(model);
-      if (keyValues != null) options = BoxerQueryOption.eq(columns: keyValues.keys.toList(), values: keyValues.values.toList());
-    }
-
     Map<String, Object?> values = Map<String, Object?>.from(translate(model));
+
+    Map<String, dynamic>? fields = getModelIdentifyFields<T>()?.call(model);
+    if (fields != null && fields.isNotEmpty) {
+      options = BoxerQueryOption.eq(columns: fields.keys.toList(), values: fields.values.toList()).merge(options);
+    }
     return await mUpdate(values, options: options);
   }
 

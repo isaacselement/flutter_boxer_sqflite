@@ -1,34 +1,30 @@
 import 'dart:async';
 
 import 'package:example/database/biz_table_cache.dart';
-import 'package:example/database/biz_table_manager.dart';
+import 'package:example/database/box_table_manager.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:synchronized_call/synchronized_call.dart';
 
-/// 缓存业务逻辑
-class SqlCacheHandler {
-  /// cacheFuture 与 requestFuture 完成后都会调 updateView
-  ///
-  /// requestFuture 比 cacheFuture 先完成，那么 cacheFuture 的数据不会去 updateView
-  ///
-  /// requestFuture 完成后会调 updateCache 去更新缓存表
+class BoxCacheHandler {
+  /// 除非 requestFuture 比 cacheFuture 先完成，那么 cacheFuture 与 requestFuture 完成后都会调 updateView, requestFuture 之后 updateCache 更新缓存表
+  /// cacheFuture 可传 null 因为确实需要这样的场景: 需要刷新一下请求的数据去更新UI更新缓存，但不需要读取缓存的了
   static Future<T> getData<T>({
-    required Future<T> cacheFuture,
+    required Future<T>? cacheFuture,
     required Future<T> requestFuture,
     required void Function(T value) updateCache,
     required void Function(T result, bool isFromCache) updateView,
-    void Function(bool isCache, dynamic error, dynamic stackTrace)? onError,
+    void Function(dynamic error, dynamic stackTrace, bool isFromCache)? onError,
   }) async {
     bool isRequestDone = false;
     Completer<T> completer = Completer();
-    cacheFuture.then((value) {
+    cacheFuture?.then((value) {
       /// No need the cache data cause request data return first
       if (isRequestDone) return;
 
       /// Update UI
       updateView(value, true);
     }).onError((error, stackTrace) {
-      onError?.call(true, error, stackTrace);
+      onError?.call(error, stackTrace, true);
     });
     requestFuture.then((value) async {
       isRequestDone = true;
@@ -40,7 +36,7 @@ class SqlCacheHandler {
       /// Update to local db cache
       updateCache(value);
     }).onError((error, stackTrace) {
-      onError?.call(false, error, stackTrace);
+      onError?.call(error, stackTrace, false);
     });
     return completer.future;
   }
@@ -52,7 +48,7 @@ class BizTableArticleList {
     try {
       String type = flag;
       BoxerQueryOption op = BoxerQueryOption.e(column: BizTableCache.kCOLUMN_TYPE, value: type);
-      List<Map> articles = await BizTableManager.articleListTable.mQueryAsMap(options: op);
+      List<Map> articles = await BoxTableManager.articleListTable.mQueryAsMap(options: op);
       return articles;
     } catch (e, s) {
       BxLoG.d('get article list error: $e, $s');
@@ -65,8 +61,8 @@ class BizTableArticleList {
     try {
       String type = flag ?? '';
       BoxerQueryOption op = BoxerQueryOption.e(column: BizTableCache.kCOLUMN_TYPE, value: type);
-      await BizTableManager.articleListTable.resetWithItems(articlesJson, option: op, translator: (dynamic e) {
-        Map<String, Object?> values = BizTableManager.articleListTable.insertionTranslator!(e);
+      await BoxTableManager.articleListTable.resetWithItems(articlesJson, option: op, translator: (dynamic e) {
+        Map<String, Object?> values = BoxTableManager.articleListTable.insertionTranslator!(e);
         values[BizTableCache.kCOLUMN_TYPE] = type;
         values[BizTableCache.kCOLUMN_ITEM_ID] = e is Map ? e['uuid']?.toString() ?? '' : '';
         return values;
@@ -81,12 +77,12 @@ class BizTableArticleList {
 class BizTableArticleTitle {
   // 获取
   static Future<List<Map>> getArticleTitles() async {
-    return await BizTableManager.articleTitleTable.mQueryAsMap();
+    return await BoxTableManager.articleTitleTable.mQueryAsMap();
   }
 
   // 更新
   static Future<void> updateArticleTitles(List<dynamic> list) async {
-    await BizTableManager.articleTitleTable.resetWithItems(list);
+    await BoxTableManager.articleTitleTable.resetWithItems(list);
   }
 }
 
@@ -99,7 +95,7 @@ class BizTableArticleStatus {
   /// 判断文章是否已读
   static Future<bool> isArticleRead(String articleUUID) async {
     try {
-      String? read = await BizTableManager.articleStatusTable.getOne(itemId: articleUUID);
+      String? read = await BoxTableManager.articleStatusTable.getOne(itemId: articleUUID);
       return read == kREAD_VALUE;
     } catch (e, s) {
       BxLoG.d('check article read status error: $e, $s');
@@ -113,21 +109,21 @@ class BizTableArticleStatus {
       if (await isArticleRead(articleUUID)) return;
 
       /// 如果表的记录数超过某个数量，清除掉一些旧的
-      int? count = await BizTableManager.articleStatusTable.selectCount();
+      int? count = await BoxTableManager.articleStatusTable.selectCount();
       if (count != null && count > 200) {
-        int? maxId = await BizTableManager.articleStatusTable.maxId();
+        int? maxId = await BoxTableManager.articleStatusTable.maxId();
         if (maxId != null) {
           int lessThan = maxId - count ~/ 2;
           BoxerQueryOption op1 = BoxerQueryOption.l(column: BizTableCache.kCOLUMN_ID, value: lessThan);
           BoxerQueryOption op2 = BoxerQueryOption.isNull(column: BizTableCache.kCOLUMN_TYPE);
           BoxerQueryOption ops = BoxerQueryOption.merge([op1, op2]);
-          int deleted = await BizTableManager.articleStatusTable.delete(where: ops.where, whereArgs: ops.whereArgs);
+          int deleted = await BoxTableManager.articleStatusTable.delete(where: ops.where, whereArgs: ops.whereArgs);
           BxLoG.d('markArticleAsRead, delete count: $deleted');
         }
       }
 
       /// 记录已读
-      await BizTableManager.articleStatusTable.addOne(value: kREAD_VALUE, itemId: articleUUID);
+      await BoxTableManager.articleStatusTable.addOne(value: kREAD_VALUE, itemId: articleUUID);
     } catch (e, s) {
       BxLoG.d('markArticleAsRead error: $e, $s');
     }
@@ -137,7 +133,7 @@ class BizTableArticleStatus {
   static Future<bool> isArticleVoiceFullyPlayed(String? articleUUID) async {
     if (articleUUID == null) return false;
     try {
-      String? read = await BizTableManager.articleStatusTable.getOne(itemId: articleUUID, type: kTYPE_VOICE_PLAY_DONE);
+      String? read = await BoxTableManager.articleStatusTable.getOne(itemId: articleUUID, type: kTYPE_VOICE_PLAY_DONE);
       return read == kREAD_VALUE;
     } catch (e, s) {
       BxLoG.d('isArticleVoiceFullyPlayed error: $e, $s');
@@ -153,11 +149,11 @@ class BizTableArticleStatus {
         /// 记录已播放完毕
         if (await isArticleVoiceFullyPlayed(articleUUID)) return;
         BoxerQueryOption op1 = BoxerQueryOption.e(column: BizTableCache.kCOLUMN_TYPE, value: kTYPE_VOICE_PLAY_DONE);
-        int? count = await BizTableManager.articleStatusTable.count(op1);
+        int? count = await BoxTableManager.articleStatusTable.count(op1);
         if (count != null && count > 100) {
-          await BizTableManager.articleStatusTable.clear(op1);
+          await BoxTableManager.articleStatusTable.clear(op1);
         }
-        await BizTableManager.articleStatusTable.addOne(value: kREAD_VALUE, itemId: articleUUID, type: kTYPE_VOICE_PLAY_DONE);
+        await BoxTableManager.articleStatusTable.addOne(value: kREAD_VALUE, itemId: articleUUID, type: kTYPE_VOICE_PLAY_DONE);
       } catch (e, s) {
         BxLoG.d('markArticleVoiceFullyPlayed error: $e, $s');
       }
@@ -171,11 +167,11 @@ class BizTableFavoriteTool {
 
   // 获取
   static Future<List<Map>> getFavoriteTools() async {
-    return await BizTableManager.favoriteToolsTable.mQueryAsMap();
+    return await BoxTableManager.favoriteToolsTable.mQueryAsMap();
   }
 
   // 更新
   static Future<void> updateFavoriteTools(List<dynamic> list) async {
-    await BizTableManager.favoriteToolsTable.resetWithItems(list);
+    await BoxTableManager.favoriteToolsTable.resetWithItems(list);
   }
 }

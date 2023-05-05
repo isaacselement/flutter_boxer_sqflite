@@ -1,26 +1,16 @@
 import 'package:intl/intl.dart';
 
 class DateUtil {
-  static bool isToday(int milliseconds, {bool isUtc = false}) {
-    if (milliseconds == 0) return false;
-    DateTime now = isUtc ? DateTime.now().toUtc() : DateTime.now().toLocal();
-    DateTime date = DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: isUtc);
-    return isSameDay(date, now);
+  static bool isToday(DateTime date) {
+    return isSameDay(date, DateTime.now());
+  }
+
+  static bool isTodayMillis(int millis, {bool isUtc = false}) {
+    return isSameDay(DateTime.fromMillisecondsSinceEpoch(millis, isUtc: isUtc), DateTime.now());
   }
 
   static bool isYesterday(DateTime date) {
-    DateTime yesterday = DateTime.now().subtract(const Duration(days: 1));
-    return isSameDay(date, yesterday);
-  }
-
-  /// If same week with today
-  static bool isThisWeek(DateTime date) {
-    return isSameWeek(date, DateTime.now());
-  }
-
-  /// Start from Monday to Sunday
-  static bool isSameWeek(DateTime date1, DateTime date2) {
-    return isSameDay(getMondayBegin(date1), getMondayBegin(date2));
+    return isSameDay(date, DateTime.now().subtract(const Duration(days: 1)));
   }
 
   static bool isSameDay(DateTime date1, DateTime date2) {
@@ -35,50 +25,51 @@ class DateUtil {
     return date2.year == date1.year;
   }
 
-  /// The start of date
+  /// If same week with today
+  static bool isThisWeek(DateTime d) {
+    return isSameWeek(d, DateTime.now());
+  }
+
+  /// Start from Monday to Sunday
+  static bool isSameWeek(DateTime date1, DateTime date2) {
+    return isSameDay(getMondayStart(date1), getMondayStart(date2));
+  }
+
+  /// The start of date, set HH:mm:ss to 00:00:00
   static DateTime getStart(DateTime d) {
     return DateTime(d.year, d.month, d.day);
   }
 
-  /// The over of date
+  /// The over of date, set HH:mm:ss to 23:59:59
   static DateTime getOver(DateTime d) {
-    return DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
+    return d.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
   }
 
-  /// Return Monday
-  static DateTime getMondayBegin(DateTime d) {
-    // start from Monday. i.e 2019-10-07 00:00:00.000
+  /// Day and month values begin at 1, and the week starts on Monday.
+  /// That is, the constants [january] and [monday] are both 1.
+
+  /// Return Monday, set HH:mm:ss to 00:00:00
+  static DateTime getMondayStart(DateTime d) {
     return getStart(d.subtract(Duration(days: d.weekday - 1)));
   }
 
-  /// Return Sunday
+  /// Return Sunday, set HH:mm:ss to 23:59:59
   static DateTime getSundayOver(DateTime d) {
-    // end with next Monday. i.e 2019-10-14 00:00:00.000 minus 1 millis second
-    return getStart(d.add(Duration(days: DateTime.daysPerWeek - d.weekday)));
+    return getOver(d.add(Duration(days: DateTime.daysPerWeek - d.weekday)));
   }
 
-  /// Return Sunday, and set HH:mm:ss to 0
-  static DateTime getSundayBegin(DateTime d) {
-    int weekIndex = d.weekday;
-    if (d.weekday == DateTime.sunday) {
-      weekIndex = 0;
-    }
-    final startDate = d.subtract(Duration(days: weekIndex));
-    return DateTime(startDate.year, startDate.month, startDate.day);
+  /// Sunday as a week begin, set HH:mm:ss to 00:00:00
+  static DateTime getSundayStart(DateTime d) {
+    return getStart(d.subtract(Duration(days: d.weekday == DateTime.sunday ? 0 : d.weekday)));
   }
 
-  /// Return Saturday, and set HH:mm:ss to 59
+  /// Saturday as a week end, set HH:mm:ss to 23:59:59
   static DateTime getSaturdayOver(DateTime d) {
-    int weekIndex = d.weekday;
-    if (d.weekday == DateTime.sunday) {
-      weekIndex = 0;
-    }
-    final endDate = d.add(Duration(days: DateTime.daysPerWeek - weekIndex));
-    return DateTime(endDate.year, endDate.month, endDate.day).subtract(const Duration(seconds: 1));
+    return getSundayStart(d).add(Duration(days: DateTime.daysPerWeek)).subtract(Duration(milliseconds: 1));
   }
 
-  /// Reset minute and second to zero
-  static DateTime resetSecondsToZero(DateTime d) => DateTime(d.year, d.month, d.day, d.hour, 0);
+  /// Reset minutes and seconds to zero
+  static DateTime resetMinutesToZero(DateTime d) => DateTime(d.year, d.month, d.day, d.hour);
 
   /// Get DateTime By Milliseconds.
   static DateTime getDateTimeByMillis(int millis, {bool isUtc = false}) => DateTime.fromMillisecondsSinceEpoch(millis, isUtc: isUtc);
@@ -104,12 +95,16 @@ class DateUtil {
     }
   }
 
-  /// Return by timezone
+  /// Calculate by timezone offset
   static DateTime addTimezone(DateTime dateTime, int timezoneOffset) {
     return dateTime.add(Duration(hours: timezoneOffset));
   }
 
-  /// Parse string to DateTime
+  static DateTime subtractTimezone(DateTime dateTime, int timezoneOffset) {
+    return dateTime.subtract(Duration(hours: timezoneOffset));
+  }
+
+  /// Parse String to DateTime
   static DateTime? parse(String string, {String? pattern}) {
     try {
       return DateFormat(pattern).parse(string);
@@ -119,11 +114,7 @@ class DateUtil {
     return null;
   }
 
-  /// 'd MMM, yyyy HH:mm:ss': '9 May, 2020 03:30:01', 'd MMM, yyyy': '9 May, 2020', 'MMM.yyyy': 'Nov.2021'
-  static String translate(String string, {String? pattern = 'yyyy-MM-dd HH:mm:ss'}) {
-    return formatString(string, pattern: pattern);
-  }
-
+  /// Format DateTime to String
   static String format(DateTime date, {String? pattern = 'yyyy-MM-dd HH:mm:ss'}) {
     try {
       return DateFormat(pattern).format(date);
@@ -133,13 +124,15 @@ class DateUtil {
     return '';
   }
 
-  static String formatString(String string, {String? pattern = 'yyyy-MM-dd HH:mm:ss'}) {
-    if (string.isEmpty) return '';
+  /// Format String to String with DateTime pattern
+  /// 'MMM.yyyy': 'Nov.2021'
+  /// 'd MMM, yyyy': '9 May, 2020'
+  /// 'd MMM, yyyy HH:mm:ss': '9 May, 2020 03:30:01'
+  static String translate(String string, {String? pattern = 'yyyy-MM-dd HH:mm:ss'}) {
     try {
-      DateTime dateTime = parse(string, pattern: pattern) ?? DateTime.parse(string);
-      return format(dateTime, pattern: pattern);
+      return format(parse(string, pattern: pattern) ?? DateTime.parse(string), pattern: pattern);
     } catch (e, s) {
-      print('intl formatString error $string: $e  $s');
+      print('intl translate error $string: $e  $s');
     }
     return '';
   }

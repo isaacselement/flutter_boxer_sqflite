@@ -47,7 +47,7 @@ class DatabaseUtil {
     return !await isTableExistedRaw(db, tableName);
   }
 
-  /// Reset auto increment ID
+  /// Reset auto increment ID. It may not working before u clear your table.
   static Future<void> resetAutoIdRaw(DatabaseExecutor db, {String? tableName}) async {
     try {
       String sql = "UPDATE sqlite_sequence SET seq = 0 ${tableName != null ? " WHERE name = '$tableName'" : ""}";

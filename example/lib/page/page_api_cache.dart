@@ -1,6 +1,6 @@
-import 'package:example/database/biz_database_manager.dart';
-import 'package:example/database/biz_table_hanlder.dart';
-import 'package:example/database/biz_table_manager.dart';
+import 'package:example/database/box_database_manager.dart';
+import 'package:example/database/biz_table_handler.dart';
+import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread_api.dart';
 import 'package:example/widget/table_view.dart';
 import 'package:flutter/cupertino.dart';
@@ -51,18 +51,18 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
   }
 
   Future<void> _refreshDataSourceRaw() async {
-    await BizDatabaseManager.init();
+    await BoxDatabaseManager.init();
 
     Map<String, dynamic>? map = {};
 
     /// show sqlite_master
-    String tableName = BizTableManager.kNAME_ARTICLE_LIST;
+    String tableName = BoxTableManager.kNAME_ARTICLE_LIST;
 
     Future<List<dynamic>> cacheResultsFuture = BizTableArticleList.getArticleList('newest');
     Future<List<dynamic>> cacheFuture = Future.delayed(Duration(milliseconds: 1000), () => cacheResultsFuture);
     // Future<List<dynamic>> cacheFuture = Future.delayed(Duration(milliseconds: 5000), () => cacheResultsFuture);
     Future<List<dynamic>> apiListFuture = BreadApi.getList();
-    SqlCacheHandler.getData<List<dynamic>>(
+    BoxCacheHandler.getData<List<dynamic>>(
       cacheFuture: cacheFuture,
       requestFuture: apiListFuture,
       updateCache: (value) {

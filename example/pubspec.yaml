@@ -37,7 +37,7 @@ dependencies:
   flutter_dialog_shower:
     git:
       url: https://github.com/isaacselement/flutter_dialog_shower.git
-      ref: 01c78581902f58eb01f174ffe3e4f13109ee9973
+      ref: 31f1db8919ede6c5f8c659f516b122aa24fa4317
 
   intl:
 
