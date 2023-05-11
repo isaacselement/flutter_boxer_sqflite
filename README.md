@@ -1,16 +1,33 @@
 # flutter_boxer_sqflite
 
-A new Flutter project.
+[![pub package](https://img.shields.io/pub/v/flutter_boxer_sqflite.svg)](https://pub.dev/packages/flutter_boxer_sqflite)
 
-## Getting Started
+A Wrapper of package `sqflite`, support easy usage on `query/insert/update/delete` and `batch/transaction`
 
-This project is a starting point for a Flutter application.
+## Initialize
 
-A few resources to get you started if this is your first Flutter project:
+    ````
+    # Create a boxer instance (generic a single instance)
+    BoxerDatabase boxer = BoxerDatabase(version: version, name: 'database.db');
+    
+    # Register the tables
+    boxer.registerTable(BoxTableManager.bizCacheTable);
+    boxer.registerTable(BoxTableManager.bizCacheStudent);
+    
+    # Open the database establish connection
+    await boxer.open();
+    ````
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+## How to use
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+* Look out API of the three class `BoxerDatabase` and `BoxerTableBase` & its subclass `BoxerTableTranslator`
+* Run `example/lib/main.dart` on mobile device or PC for more example usage.
+
+## Features and bugs
+
+Please feel free to:
+request new features and bugs at the [issue tracker][tracker]
+
+
+
+[tracker]: https://github.com/isaacselement/flutter_boxer_sqflite/issues

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:sqflite/sqflite.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
 class BoxerDatabase {
@@ -16,40 +15,60 @@ class BoxerDatabase {
   String? name;
 
   /// Database instance of sqflite
-  late Database database;
+  Database? _database;
+
+  Database get database {
+    assert(_database != null, '❗️❗️❗️FATAL!!! You should open database first');
+    return _database!;
+  }
 
   void setDatabase(Database db) {
-    database = db;
-    tables.forEach((entry) {
-      entry.boxer = this;
-      entry.database = db;
+    _database = db;
+    tables.forEach((table) {
+      table.database = _database!;
     });
   }
 
-  /// Database operations error handler, execute or query sql etc...
-  BoxerDatabaseError? onError;
+  /// Create and Open Database instance
+  Completer<Database?>? openingCompleter;
 
-  void reportError(dynamic e, dynamic s) => onError?.call(e, s);
-
-  /// Create and open database
-  Future<void> open() async {
-    name ??= 'database.db';
-    path ??= '${await getDatabasesPath()}/$name';
-    if (path?.endsWith('/') ?? false) {
-      path = '$path$name';
+  FutureOr<Database?> open() async {
+    if (_database != null) {
+      return _database;
     }
-    String dbPath = path!;
-    assert(() {
-      print('[BoxerDatabase] - opening database, local path is: $dbPath');
-      return true;
-    }());
+    if (openingCompleter != null) {
+      return await openingCompleter!.future;
+    }
+    openingCompleter = Completer();
+    Database? db;
+    try {
+      name ??= 'database.db';
+      path ??= '${await getDatabasesPath()}/$name';
+      if (path?.endsWith('/') ?? false) {
+        path = '$path$name';
+      }
+      String dbPath = path!;
+      BoxerLogger.i(null, '[BoxerDatabase] - opening database, local path is: $dbPath');
 
-    /// will sync call onConfigure/onCreate/onUpgrade/onDowngrade/onOpen if needed
-    await openDB(path: dbPath, version: version);
-    assert(() {
-      print('[BoxerDatabase] - open database done');
-      return true;
-    }());
+      /// will sync call onConfigure -> onCreate -> onUpgrade -> onDowngrade -> onOpen if needed
+      db = await openDB(path: dbPath, version: version);
+      openingCompleter?.complete(db);
+      BoxerLogger.i(null, '[BoxerDatabase] - open database done');
+    } catch (e, s) {
+      openingCompleter?.complete(null);
+      BoxerLogger.f(null, '[BoxerDatabase] - open database error: $e, $s');
+      BoxerLogger.reportFatalError(e, s);
+    }
+    // so far, the same instance of properties [_database]
+    return db;
+  }
+
+  FutureOr<Database> ensureDatabaseAvailable() async {
+    if (_database == null && openingCompleter != null) {
+      await openingCompleter!.future;
+    }
+    assert(_database != null, '❗️❗️❗️FATAL!!! You database not call `open` or open failed');
+    return _database!;
   }
 
   Future<Database> openDB({required String path, int? version}) async {
@@ -112,11 +131,16 @@ class BoxerDatabase {
   /// Register tables for this instance of database
   Map<String, BoxerTableBase> namedTables = {};
 
-  T? getTable<T extends BoxerTableBase>(String name) => namedTables[name] as T?;
-
-  void registerTable(BoxerTableBase table, {String? name}) => namedTables[name ?? table.tableName] = table;
-
   List<BoxerTableBase> get tables => namedTables.entries.map((e) => e.value).toList();
+
+  void registerTable(BoxerTableBase table, {String? name}) {
+    namedTables[name ?? table.tableName] = table;
+    if (_database != null) {
+      table.database = _database!;
+    }
+  }
+
+  T? getTable<T extends BoxerTableBase>(String name) => namedTables[name] as T?;
 
   T? ofTable<T extends BoxerTableBase>() => tables.map((e) => e is T).toList().firstSafe as T?;
 
@@ -126,41 +150,40 @@ class BoxerDatabase {
 
   /// Check if current table created success using 'sqlite_master'
   Future<bool> isTableExisted(String tableName) async {
-    return await DatabaseUtil.isTableExistedRaw(database, tableName);
+    return await BoxerDatabaseUtil.isTableExistedRaw(database, tableName);
   }
 
   /// Select count
   Future<int?> selectCount(String tableName, {String? where, List<Object?>? whereArgs}) async {
-    return await DatabaseUtil.selectCountRaw(database, tableName, where: where, whereArgs: whereArgs);
+    return await BoxerDatabaseUtil.selectCountRaw(database, tableName, where: where, whereArgs: whereArgs);
   }
 
   /// Select Max of column value
   Future<Object?> selectMax(String tableName, String column) async {
-    return await DatabaseUtil.selectMaxRaw(database, tableName, column);
+    return await BoxerDatabaseUtil.selectMaxRaw(database, tableName, column);
   }
 
   /// Select Min of column value
   Future<Object?> selectMin(String tableName, String column) async {
-    return await DatabaseUtil.selectMinRaw(database, tableName, column);
+    return await BoxerDatabaseUtil.selectMinRaw(database, tableName, column);
   }
 
   /// Drop table
   Future<bool> dropTable(String tableName) async {
-    return await DatabaseUtil.dropTableRaw(database, tableName);
+    return await BoxerDatabaseUtil.dropTableRaw(database, tableName);
   }
 
   /// Reset auto increment ID
   Future<void> resetAutoId(String tableName) async {
-    await DatabaseUtil.resetAutoIdRaw(database, tableName: tableName);
+    await BoxerDatabaseUtil.resetAutoIdRaw(database, tableName: tableName);
   }
 
   /// Iterate all the tables
   Future<void> iterateAllTables(FutureOr<bool?> Function(String tableName, List<String> columns) iterator) async {
-    return await DatabaseUtil.iterateAllTablesRaw(database, iterator);
+    return await BoxerDatabaseUtil.iterateAllTablesRaw(database, iterator);
   }
 
   /// Get table (except sqlite_master) column names
-  Future<List<String>> getTableColumnNames(String tableName) => DatabaseUtil.getTableColumnNamesRaw(database, tableName);
+  Future<List<String>> getTableColumnNames(String tableName) =>
+      BoxerDatabaseUtil.getTableColumnNamesRaw(database, tableName);
 }
-
-typedef BoxerDatabaseError = void Function(/* Object */ dynamic exception, /* StackTrace? */ dynamic stack);

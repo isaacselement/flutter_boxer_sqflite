@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:sqflite/sqflite.dart';
-import 'package:synchronized_call/synchronized_call.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
+import 'package:synchronized_call/synchronized_call.dart';
 
 abstract class BoxerTableTranslator extends BoxerTableBase {
   void onQuery(BoxerQueryOption options);
@@ -75,7 +74,8 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
       ..where = where
       ..whereArgs = whereArgs;
     onUpdateValues(values, options);
-    return await super.update(values, where: options.where, whereArgs: options.whereArgs, conflictAlgorithm: conflictAlgorithm);
+    return await super
+        .update(values, where: options.where, whereArgs: options.whereArgs, conflictAlgorithm: conflictAlgorithm);
   }
 
   /// Delete
@@ -94,53 +94,55 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
 
   /** Query **/
 
-  /// [mQueryAsModels] based on a Json-Object (Map or List)
+  /// [mQueryAsModels] based on a Json-Object Map
   ///
-  /// [fromJson] is the function that tell to callee how to translate result to model object
+  /// parameter [fromJson] is the function that tell to callee how to translate result to model T object
   Future<List<T>> mQueryAsModels<T>({ModelTranslatorFromJson<T>? fromJson, BoxerQueryOption? options}) async {
     ModelTranslatorFromJson<T>? translate = BoxerTableTranslator.getModelTranslatorFrom(fromJson);
     if (translate == null) return [];
     return (await mQueryAsMap(options: options)).map((e) => translate(e)).toList();
   }
 
+  /// translate it to Json-Object (Map or List)
   Future<List<Map>> mQueryAsMap({BoxerQueryOption? options}) => mQueryAsJson<Map>(options: options);
 
   Future<List<List>> mQueryAsList({BoxerQueryOption? options}) => mQueryAsJson<List>(options: options);
 
-  /// translate it to T, T should be a Json-Object (Map or List) Type
   Future<List<T>> mQueryAsJson<T>({BoxerQueryOption? options}) async {
     return (await mQueryAsStrings(options: options)).map<T>((string) {
       T? result;
       try {
         result = string.isNotEmpty ? json.decode(string) as T : null;
       } catch (e, s) {
-        BxLoG.d('❗️❗️❗️ERROR: query as json decode error: $e, $s');
+        BoxerLogger.e(null, '❗️❗️❗️ERROR: query as json decode error: $e, $s');
         // rethrow;
       }
       return result ?? (T.toString() == [].runtimeType.toString() ? [] : {}) as T;
     }).toList();
   }
 
+  /// translate it to String
   Future<List<String>> mQueryAsStrings({BoxerQueryOption? options}) async {
     return (await mQueryAsObjects(options: options)).map<String>((e) => e?.toString() ?? '').toList();
   }
 
-  /// Query and cast the result to specified object type, or filter the result using [queryAsTranslator]
-  Object? Function(Map<String, Object?> element)? queryAsTranslator;
+  /// Query and cast the result to specified object type, or filter the result using [queryAsObjectTranslator]
+  Object? Function(Map<String, Object?> element)? queryAsObjectTranslator;
 
-  /// Query the element or it's one column value using [queryAsTranslator]
-  Future<List<Object?>> mQueryAsObjects({Object? Function(Map<String, Object?> item)? translator, BoxerQueryOption? options}) async {
+  Future<List<Object?>> mQueryAsObjects(
+      {Object? Function(Map<String, Object?> item)? translator, BoxerQueryOption? options}) async {
     return await mQueryTo<Object?>(
       options: options,
       translator: (Map<String, Object?> element) {
-        translator ??= queryAsTranslator;
+        translator ??= queryAsObjectTranslator;
         return translator != null ? translator!(element) : element;
       },
     );
   }
 
   /// Query and translate the values to a specified object models
-  Future<List<T>> mQueryTo<T>({required T Function(Map<String, Object?> item) translator, BoxerQueryOption? options}) async {
+  Future<List<T>> mQueryTo<T>(
+      {required T Function(Map<String, Object?> item) translator, BoxerQueryOption? options}) async {
     List<Map<String, Object?>> values = await query(options: options);
     List<T> results = values.map((element) => translator(element)).toList();
     return results;
@@ -153,7 +155,7 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
 
   Future<List<int>?> mInserts<T>(List<T> items, {InsertionTranslator<T>? translator}) async {
     if ((await insertionsBreakHandler?.call()) == true) {
-      BxLoG.d('$tableName insert bulk items broken, cause the [insertionsBreakHandler] return true!');
+      BoxerLogger.d(null, 'Insert $tableName bulk items broken, cause the [insertionsBreakHandler] return true!');
       return null;
     }
 
@@ -165,7 +167,7 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
         insertedIds.add(identifier);
       }
     }
-    BxLoG.d('Inserted items ids is: $insertedIds');
+    BoxerLogger.d(null, 'Inserted items ids is: $insertedIds');
     return insertedIds;
   }
 
@@ -245,7 +247,7 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
     List? list = BoxerTableTranslator.modelTranslators[T];
     ModelIdentifyFields<T>? uniqueFieldGetter = list?.atSafe(2) as ModelIdentifyFields<T>?;
     if (uniqueFieldGetter == null) {
-      BxLoG.d('No ModelIdentifyFields set/registered for $T');
+      BoxerLogger.d(null, 'No ModelIdentifyFields set/registered for $T');
     }
     return uniqueFieldGetter;
   }
@@ -265,7 +267,9 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
     }
     // item is the result if needed
     if (outerMap == null && item is Map) {
-      outerMap = item is Map<String, Object?> ? item : Map<String, Object?>.from(item); // outerMap = item.cast<String, Object?>();
+      outerMap = item is Map<String, Object?>
+          ? item
+          : Map<String, Object?>.from(item); // outerMap = item.cast<String, Object?>();
     }
     return outerMap;
   }
@@ -327,6 +331,7 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
   }
 }
 
+/// In terms of intuitive efficiency, BATCH is the best, BATCH > TRANSACTION > LOCK
 enum BatchSyncType { LOCK, BATCH, TRANSACTION }
 
 /// insert or update, translate to item to Map

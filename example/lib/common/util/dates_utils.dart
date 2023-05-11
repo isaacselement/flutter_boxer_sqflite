@@ -1,6 +1,6 @@
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' as intl;
 
-class DateUtil {
+class DatesUtils {
   static bool isToday(DateTime date) {
     return isSameDay(date, DateTime.now());
   }
@@ -72,7 +72,8 @@ class DateUtil {
   static DateTime resetMinutesToZero(DateTime d) => DateTime(d.year, d.month, d.day, d.hour);
 
   /// Get DateTime By Milliseconds.
-  static DateTime getDateTimeByMillis(int millis, {bool isUtc = false}) => DateTime.fromMillisecondsSinceEpoch(millis, isUtc: isUtc);
+  static DateTime getDateTimeByMillis(int millis, {bool isUtc = false}) =>
+      DateTime.fromMillisecondsSinceEpoch(millis, isUtc: isUtc);
 
   /// Compare hour and minute
   static bool isBefore(String a, String b) {
@@ -107,7 +108,7 @@ class DateUtil {
   /// Parse String to DateTime
   static DateTime? parse(String string, {String? pattern}) {
     try {
-      return DateFormat(pattern).parse(string);
+      return intl.DateFormat(pattern).parse(string);
     } catch (e, s) {
       print('intl parse error $string: $e  $s');
     }
@@ -117,7 +118,7 @@ class DateUtil {
   /// Format DateTime to String
   static String format(DateTime date, {String? pattern = 'yyyy-MM-dd HH:mm:ss'}) {
     try {
-      return DateFormat(pattern).format(date);
+      return intl.DateFormat(pattern).format(date);
     } catch (e, s) {
       print('intl format error $date: $e  $s');
     }

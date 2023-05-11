@@ -1,8 +1,12 @@
 import 'package:example/app.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 void main() {
+  /// Print the entry point of the program
+  () async {
+    print('Process started from `main` function');
+  }();
+
   /// Flutter Error Report
   FlutterError.onError = (FlutterErrorDetails details) {
     assert(() {
@@ -12,23 +16,21 @@ void main() {
   };
 
   /// Run App
-  runApp(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: App(),
-    ),
-  );
+  void runApplication() {
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: App(),
+      ),
+    );
+  }
 
+  /// Run without Zone
+  runApplication();
+
+  /// Run with Zone
   // runZonedGuarded(
-  //   () {
-  //     /// Run App
-  //     runApp(
-  //       MaterialApp(
-  //         debugShowCheckedModeBanner: false,
-  //         home: App(),
-  //       ),
-  //     );
-  //   },
+  //   runApplication,
   //
   //   /// Unhandled Exception
   //   (Object error, StackTrace stack) {

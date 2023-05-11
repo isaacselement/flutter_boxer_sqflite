@@ -1,13 +1,15 @@
+import 'dart:async';
+
+import 'package:example/common/util/toast_helper.dart';
+import 'package:example/database/box_cache_table_handler.dart';
 import 'package:example/database/box_database_manager.dart';
-import 'package:example/database/biz_table_handler.dart';
 import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread_api.dart';
 import 'package:example/widget/table_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
-import 'package:synchronized_call/synchronized_call.dart';
 
 class PageApiCache extends StatefulWidget {
   PageApiCache({Key? key}) : super(key: key);
@@ -17,16 +19,17 @@ class PageApiCache extends StatefulWidget {
 }
 
 class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver {
-  Widget allTableWidgets = Column();
-
-  Map<String, ScrollController> listScrollControllers = {};
-  Map<String, Btv<int?>> selectedIndexes = {};
-
   @override
   void initState() {
     super.initState();
     Boxes.getWidgetsBinding().addObserver(this);
-    refreshDataSource();
+
+    clearDatasource();
+
+    refreshDataSourceDuration(
+      cacheDuration: Duration(milliseconds: 1000),
+      requestDuration: Duration(milliseconds: 3000),
+    );
   }
 
   @override
@@ -37,96 +40,201 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
 
   @override
   void didChangeMetrics() {
-    refreshTablesUIOnly();
-  }
-
-  static const String kTbName = 'tbl_name';
-  static const String kTbColumns = 'tbl_columns';
-  static const String kTbRowCount = 'tbl_row_count';
-  static const String kTbRowResults = 'tbl_row_results';
-  List<Map<String, dynamic>> datasource = [];
-
-  Future<void> refreshDataSource() async {
-    await CallLock.get('refresh_datasource').call(() async => await _refreshDataSourceRaw());
-  }
-
-  Future<void> _refreshDataSourceRaw() async {
-    await BoxDatabaseManager.init();
-
-    Map<String, dynamic>? map = {};
-
-    /// show sqlite_master
-    String tableName = BoxTableManager.kNAME_ARTICLE_LIST;
-
-    Future<List<dynamic>> cacheResultsFuture = BizTableArticleList.getArticleList('newest');
-    Future<List<dynamic>> cacheFuture = Future.delayed(Duration(milliseconds: 1000), () => cacheResultsFuture);
-    // Future<List<dynamic>> cacheFuture = Future.delayed(Duration(milliseconds: 5000), () => cacheResultsFuture);
-    Future<List<dynamic>> apiListFuture = BreadApi.getList();
-    BoxCacheHandler.getData<List<dynamic>>(
-      cacheFuture: cacheFuture,
-      requestFuture: apiListFuture,
-      updateCache: (value) {
-        BizTableArticleList.updateArticleList(value, 'newest');
-      },
-      updateView: (value, isFromCache) {
-        datasource.clear();
-
-        List<dynamic> rowsResults = value;
-        map[kTbName] = tableName;
-        map[kTbColumns] = [
-          'breadId',
-          'uuid',
-          'breadType',
-          'breadContent',
-          'breadUpdateTime',
-          'breadCreateTime',
-          'breadTagList',
-        ];
-        map[kTbRowCount] = rowsResults.length;
-        map[kTbRowResults] = rowsResults;
-
-        datasource.add(map);
-        listScrollControllers[tableName] ??= ScrollController();
-
-        refreshTablesUIOnly();
-      },
-    );
-  }
-
-  Future<void> refreshTablesUIOnly() async {
-    List<Widget> oneTableColumnChildren = [];
-    for (int i = 0; i < datasource.length; i++) {
-      Map<String, dynamic> map = datasource[i];
-      String tableName = map[kTbName];
-
-      Widget oneTableWidget = TableView(
-        tableName: tableName,
-        columnNames: List<String>.from(map[kTbColumns]),
-        rowsCount: map[kTbRowCount],
-        rowsResults: List<Map<String, Object?>>.from(map[kTbRowResults]),
-        scrollController: listScrollControllers[tableName],
-        height: 600,
-        isShowSeq: true,
-      );
-      oneTableColumnChildren.add(oneTableWidget);
-    }
-
-    oneTableColumnChildren.add(SizedBox(height: 38));
-    allTableWidgets = Column(children: oneTableColumnChildren);
-    if (mounted) {
-      setState(() {});
-    }
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    Widget createTableView() {
+      List<Widget> children = [];
+      for (int i = 0; i < datasource.length; i++) {
+        Map<String, dynamic> map = datasource[i];
+        String tableName = map[TableView.keyTblName];
+
+        Widget oneTableWidget = TableView(
+          tableName: tableName,
+          columnNames: List<String>.from(map[TableView.keyTblColumns]),
+          rowsCount: map[TableView.keyTblRowCount],
+          rowsResults: List<Map<String, Object?>>.from(map[TableView.keyTblRowResults]),
+          scrollController: listScrollControllers[tableName],
+          height: 600,
+          isShowSeq: true,
+        );
+        children.add(oneTableWidget);
+      }
+      if (children.isNotEmpty) {
+        children.add(SizedBox(height: 38));
+      }
+      return Column(children: children);
+    }
+
     return SingleChildScrollView(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          allTableWidgets,
+          Wrap(
+            runAlignment: WrapAlignment.center,
+            children: [
+              CupertinoButton(
+                child: Text('Clear Screen', style: TextStyle(fontWeight: FontWeight.w300)),
+                onPressed: () {
+                  clearDatasource();
+                },
+              ),
+              CupertinoButton(
+                child: Text('Cache first then Request', style: TextStyle(fontWeight: FontWeight.w300)),
+                onPressed: () async {
+                  refreshDataSourceDuration(
+                    cacheDuration: Duration(milliseconds: 1000),
+                    requestDuration: Duration(milliseconds: 3000),
+                  );
+                },
+              ),
+              CupertinoButton(
+                child: Text('Request first then Cache', style: TextStyle(fontWeight: FontWeight.w300)),
+                onPressed: () async {
+                  refreshDataSourceDuration(
+                    cacheDuration: Duration(milliseconds: 3000),
+                    requestDuration: Duration(milliseconds: 1000),
+                  );
+                },
+              ),
+            ],
+          ),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Cache Error'),
+                  Switch(
+                    value: isThrowErrorOnCache,
+                    activeColor: Colors.red,
+                    onChanged: (bool value) {
+                      setState(() {
+                        isThrowErrorOnCache = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Request Error'),
+                  Switch(
+                    value: isThrowErrorOnRequest,
+                    activeColor: Colors.red,
+                    onChanged: (bool value) {
+                      // This is called when the user toggles the switch.
+                      setState(() {
+                        isThrowErrorOnRequest = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // table view
+          createTableView(),
         ],
       ),
     );
+  }
+
+  List<Map<String, dynamic>> datasource = [];
+  Map<String, ScrollController> listScrollControllers = {};
+
+  bool isThrowErrorOnCache = false;
+  bool isThrowErrorOnRequest = false;
+
+  void clearDatasource() {
+    String tableName = BoxTableManager.kNAME_BIZ_COMMON;
+    listScrollControllers[tableName] ??= ScrollController();
+
+    datasource.clear();
+    Map<String, dynamic>? map = {};
+    List<dynamic> rowsResults = [];
+    map[TableView.keyTblName] = tableName;
+    map[TableView.keyTblColumns] = BreadGenerator.oneModel.toJson().keys.toList();
+    map[TableView.keyTblRowCount] = rowsResults.length;
+    map[TableView.keyTblRowResults] = rowsResults;
+    datasource.add(map);
+    setState(() {});
+  }
+
+  Future<void> refreshDataSourceDuration({
+    Duration? cacheDuration,
+    Duration? requestDuration,
+  }) async {
+    // Future<List<dynamic>>? cacheFuture = null;
+    Future<List<dynamic>>? cacheFuture = () async {
+      await Future.delayed(cacheDuration ?? const Duration(milliseconds: 5000));
+      return await loadFromCache();
+    }();
+
+    // Future<List<dynamic>>? requestFuture = null;
+    Future<List<dynamic>>? requestFuture = () async {
+      await Future.delayed(requestDuration ?? const Duration(milliseconds: 3000));
+      return await loadFromRequest();
+    }();
+
+    await refreshDataSource(cacheFuture: cacheFuture, requestFuture: requestFuture);
+  }
+
+  Future<void> refreshDataSource({
+    required Future<List<dynamic>>? cacheFuture,
+    required Future<List<dynamic>>? requestFuture,
+  }) async {
+    await BoxDatabaseManager.init();
+
+    BoxerCacheHandler<List<dynamic>> handler = BoxerCacheHandler(
+      updateCache: (value) {
+        updateToCache(value);
+      },
+      updateView: (value, bool isFromCache) {
+        Map<String, dynamic>? map = datasource.first;
+        map[TableView.keyTblRowCount] = value.length;
+        map[TableView.keyTblRowResults] = value;
+        setState(() {});
+      },
+      onLoadError: (error, stack, errorType) {
+        String msg = "##### Error: $error [$errorType]";
+        if (errorType == BoxerCacheHandlerErrorType.CACHE) {
+          ToastHelper.showRed(msg);
+        } else {
+          ToastHelper.showGreen(msg);
+        }
+      },
+    );
+
+    handler.getData(requestFuture: requestFuture, cacheFuture: cacheFuture).then((value) {
+      // null if error
+      print('【getData】 DONE: $value');
+    }).onError((e, s) {
+      // not possible
+      print('【getData】 ERROR: $e, $s');
+    });
+  }
+
+  Future<List<dynamic>> loadFromRequest() async {
+    if (isThrowErrorOnRequest) {
+      throw Exception('Request error');
+    }
+    return await BreadApi.getList();
+  }
+
+  Future<List<dynamic>> loadFromCache() async {
+    if (isThrowErrorOnCache) {
+      throw Exception('Cache error');
+    }
+    return await BizCacheTableHandler.loadDataList('BREAD');
+  }
+
+  Future<void> updateToCache(List<dynamic> value) async {
+    await BizCacheTableHandler.updateDataList(value, 'BREAD');
   }
 }

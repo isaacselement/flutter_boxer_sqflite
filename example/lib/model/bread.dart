@@ -1,8 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
-
-import 'package:example/common/util/date_util.dart';
-import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
 
 class Bread {
   final int? breadId;
@@ -54,32 +50,4 @@ class BreadTag {
       };
 
   String toString() => json.encode(toJson());
-}
-
-class BreadFake {
-  static int breadSeq = 0;
-  static int breadTagId = 0;
-
-  static Bread get oneModel => Bread.fromJson(oneMap());
-
-  static Map<String, Object?> oneMap({
-    String? content,
-    DateTime? updateTime,
-    DateTime? createTime,
-  }) =>
-      Map.from(
-        {
-          "breadId": DateTime.now().millisecondsSinceEpoch,
-          "uuid": '${breadSeq++}${StringsUtils.fakeUUID()}',
-          "breadType": Random().nextBool() ? "voice" : "common",
-          "breadContent": content ?? "You are so handsome!!!!!",
-          "breadUpdateTime": updateTime != null ? DateUtil.format(updateTime) : "2023-04-01 00:00:00",
-          "breadCreateTime": createTime != null ? DateUtil.format(createTime) : "2023-03-03 00:00:00",
-          "breadTagList": [
-            {"tagId": breadTagId++, "tagName": "最新", "tagFlag": "newest"},
-            {"tagId": breadTagId++, "tagName": "头条", "tagFlag": "headline"},
-            {"tagId": breadTagId++, "tagName": "必读", "tagFlag": "force_read"},
-          ],
-        },
-      );
 }

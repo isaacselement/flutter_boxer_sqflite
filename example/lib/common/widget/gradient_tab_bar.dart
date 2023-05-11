@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 /// Tar bar with background gradual color animation
-class BoxTabBar extends StatelessWidget {
-  BoxTabBar({
+class GradientTabBar extends StatelessWidget {
+  GradientTabBar({
     Key? key,
     required this.titles,
     this.tabController,
@@ -128,7 +127,8 @@ class TabBackgroundAnimatedBar extends AnimatedWidget {
   final Color unselectedColor;
 
   @override
-  Widget build(BuildContext context) => transitionBox(title, selected, margin, selectedColor, unselectedColor, animation.value);
+  Widget build(BuildContext context) =>
+      transitionBox(title, selected, margin, selectedColor, unselectedColor, animation.value);
 
   static Widget transitionBox(
     String title,
@@ -143,7 +143,8 @@ class TabBackgroundAnimatedBar extends AnimatedWidget {
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.all(Radius.circular(4)),
-        color: Color.lerp(selected ? selectedColor : unselectedColor, selected ? unselectedColor : selectedColor, ratio),
+        color:
+            Color.lerp(selected ? selectedColor : unselectedColor, selected ? unselectedColor : selectedColor, ratio),
       ),
       child: Text(title),
     );

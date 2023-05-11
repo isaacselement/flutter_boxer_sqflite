@@ -1,9 +1,10 @@
 name: flutter_boxer_sqflite
-description: A new Flutter project.
+homepage: https://github.com/isaacselement/flutter_boxer_sqflite.git
+description: Wrapper of package `sqflite`, support easy usage on query/insert/update/delete and batch/transaction
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+# publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -15,17 +16,19 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 1.0.0+1
+version: 1.0.0
 
 environment:
   sdk: ">=2.12.2 <3.0.0"
 
 dependencies:
+
   flutter:
     sdk: flutter
 
-  sqflite:
-  synchronized_call:
+  sqflite: ^2.0.0
+
+  synchronized_call: ^1.0.4
 
 dev_dependencies:
   flutter_test:

@@ -70,22 +70,3 @@ extension IterableEx<E> on Iterable<E> {
 extension StringEx on String {
   String removeLast(String s) => this.endsWith(s) ? this.substring(0, this.length - 1) : this;
 }
-
-class BxLoG {
-  /// debug log
-  static void d(String message, {String? tag}) {
-    assert(() {
-      print('${DateTime.now()}: [${tag ?? BxLoG}] $message');
-      return true;
-    }());
-  }
-
-  /// https://dart.dev/guides/language/language-tour#assert
-  /// Only print and evaluate the expression function on debug mode, will omit in production/profile mode
-  static void console(String Function() expr) {
-    assert(() {
-      print('${DateTime.now()}: ${expr()}');
-      return true;
-    }());
-  }
-}

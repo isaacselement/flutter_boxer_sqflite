@@ -1,14 +1,10 @@
-import 'package:example/database/biz_table_cache.dart';
+import 'package:example/database/box_cache_table.dart';
 
-/// Table 管理者
+/// Table Manager
 class BoxTableManager {
-  static const String kNAME_ARTICLE_LIST = 'cache_article_list';      // 文章列表
-  static const String kNAME_ARTICLE_TITLE = 'cache_article_title';    // 文章标题
-  static const String kNAME_ARTICLE_STATUS = 'cache_article_status';  // 文章阅读状态，语音文章的播放完毕与否状态
-  static const String kNAME_FAVORITE_TOOLS = 'cache_favorite_tools';  // 常用工具
+  static const String kNAME_BIZ_COMMON = 'cache_biz_common';
+  static const String kNAME_BIZ_STUDENTS = 'cache_biz_student';
 
-  static BizTableCache articleListTable = BizTableCache(tableName: kNAME_ARTICLE_LIST);
-  static BizTableCache articleTitleTable = BizTableCache(tableName: kNAME_ARTICLE_TITLE);
-  static BizTableCache articleStatusTable = BizTableCache(tableName: kNAME_ARTICLE_STATUS);
-  static BizTableCache favoriteToolsTable = BizTableCache(tableName: kNAME_FAVORITE_TOOLS);
+  static BoxCacheTable bizCacheTable = BoxCacheTable(tableName: kNAME_BIZ_COMMON);
+  static BoxCacheTable bizCacheStudent = BoxCacheTable(tableName: kNAME_BIZ_STUDENTS);
 }

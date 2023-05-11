@@ -17,7 +17,6 @@ class PageSqliteMasterState extends State<PageSqliteMaster> with WidgetsBindingO
   Widget allTableWidgets = Column();
 
   Map<String, ScrollController> listScrollControllers = {};
-  Map<String, Btv<int?>> selectedIndexes = {};
 
   @override
   void initState() {
@@ -42,10 +41,6 @@ class PageSqliteMasterState extends State<PageSqliteMaster> with WidgetsBindingO
     refreshTablesUIOnly();
   }
 
-  static const String kTbName = 'tbl_name';
-  static const String kTbColumns = 'tbl_columns';
-  static const String kTbRowCount = 'tbl_row_count';
-  static const String kTbRowResults = 'tbl_row_results';
   List<Map<String, dynamic>> datasource = [];
 
   Future<void> refreshDataSource() async {
@@ -60,11 +55,12 @@ class PageSqliteMasterState extends State<PageSqliteMaster> with WidgetsBindingO
 
     /// show sqlite_master
     String tableName = 'sqlite_master';
-    List<Map<String, Object?>> rowsResults = await BoxDatabaseManager.boxer.database.rawQuery("SELECT * FROM $tableName");
-    map[kTbName] = tableName;
-    map[kTbColumns] = ['type', 'name', 'tbl_name', 'rootpage', 'sql'];
-    map[kTbRowCount] = rowsResults.length;
-    map[kTbRowResults] = rowsResults;
+    List<Map<String, Object?>> rowsResults =
+        await BoxDatabaseManager.boxer.database.rawQuery("SELECT * FROM $tableName");
+    map[TableView.keyTblName] = tableName;
+    map[TableView.keyTblColumns] = ['type', 'name', 'tbl_name', 'rootpage', 'sql'];
+    map[TableView.keyTblRowCount] = rowsResults.length;
+    map[TableView.keyTblRowResults] = rowsResults;
 
     datasource.add(map);
     listScrollControllers[tableName] ??= ScrollController();
@@ -74,13 +70,13 @@ class PageSqliteMasterState extends State<PageSqliteMaster> with WidgetsBindingO
     List<Widget> oneTableColumnChildren = [];
     for (int i = 0; i < datasource.length; i++) {
       Map<String, dynamic> map = datasource[i];
-      String tableName = map[kTbName];
+      String tableName = map[TableView.keyTblName];
 
       Widget oneTableWidget = TableView(
         tableName: tableName,
-        columnNames: List<String>.from(map[kTbColumns]),
-        rowsCount: map[kTbRowCount],
-        rowsResults: List<Map<String, Object?>>.from(map[kTbRowResults]),
+        columnNames: List<String>.from(map[TableView.keyTblColumns]),
+        rowsCount: map[TableView.keyTblRowCount],
+        rowsResults: List<Map<String, Object?>>.from(map[TableView.keyTblRowResults]),
         scrollController: listScrollControllers[tableName],
         height: 600,
       );

@@ -2,16 +2,18 @@ import 'dart:async';
 
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
-class DatabaseUtil {
+class BoxerDatabaseUtil {
   /// Check if current table created success using 'sqlite_master'
   static Future<bool> isTableExistedRaw(DatabaseExecutor db, String tableName) async {
     // SELECT count(1) FROM sqlite_master WHERE type="table" AND name = "$tableName";
-    int? value = await selectCountRaw(db, 'sqlite_master', where: "WHERE type= ? AND name = ? ", whereArgs: ['table', tableName]);
+    int? value = await selectCountRaw(db, 'sqlite_master',
+        where: "WHERE type= ? AND name = ? ", whereArgs: ['table', tableName]);
     return value != null && value > 0;
   }
 
   /// Select count
-  static Future<int?> selectCountRaw(DatabaseExecutor db, String tableName, {String? where, List<Object?>? whereArgs}) async {
+  static Future<int?> selectCountRaw(DatabaseExecutor db, String tableName,
+      {String? where, List<Object?>? whereArgs}) async {
     String sql = "SELECT count(1) FROM $tableName";
     if (where != null && (where = where.trim()).isNotEmpty) {
       if (!where.startsWith('WHERE')) where = "WHERE " + where;
@@ -53,7 +55,7 @@ class DatabaseUtil {
       String sql = "UPDATE sqlite_sequence SET seq = 0 ${tableName != null ? " WHERE name = '$tableName'" : ""}";
       await db.execute(sql);
     } catch (e, s) {
-      BxLoG.d('reset auto increment ID error: $e, $s');
+      BoxerLogger.e(null, 'Reset auto increment ID error: $e, $s');
     }
   }
 
@@ -92,6 +94,7 @@ class DatabaseUtil {
         result = columns; // it's ok, dart pass the ptr. also clear & addAll or setAll .
         return true;
       }
+      return false;
     });
     return result;
   }

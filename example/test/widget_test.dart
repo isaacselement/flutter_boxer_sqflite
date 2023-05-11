@@ -5,7 +5,6 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +23,8 @@ void main() {
       List<int> list = [timestamp];
       Uint8List uint8list = Uint8List.fromList(list);
       Uint64List uint64list = Uint64List.fromList(list);
-      print('debug and set a breakpoint here for inspecting. ');
+      print('uint8list: $uint8list, uint64list: $uint64list');
+      print('debug and set a breakpoint here for inspecting.');
     });
   });
 }

@@ -1,13 +1,16 @@
 import 'dart:convert';
 
 import 'package:example/common/util/widget_util.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
 
 class TableView extends StatefulWidget {
+  static const String keyTblName = 'mKeyTblName';
+  static const String keyTblColumns = 'mKeyTblColumns';
+  static const String keyTblRowCount = 'mKeyTblRowCount';
+  static const String keyTblRowResults = 'mKeyTblRowResults';
+
   /// Table Name
   final String tableName;
 
@@ -36,7 +39,7 @@ class TableView extends StatefulWidget {
     required this.rowsCount,
     required this.rowsResults,
     this.scrollController,
-    this.height = 200,
+    this.height = 300,
     this.isShowSeq = false,
   }) : super(key: key);
 
@@ -85,7 +88,8 @@ class TableViewState extends State<TableView> {
     /// if width is enough
     double contextWidth = MediaQuery.of(context).size.width;
     if (contextWidth > getHeaderTotalWidth()) {
-      kColumnMinWidth = (contextWidth - (widget.columnNames.length - 1) * kColumnDividerWidth) / widget.columnNames.length;
+      kColumnMinWidth =
+          (contextWidth - (widget.columnNames.length - 1) * kColumnDividerWidth) / widget.columnNames.length;
       for (String name in widget.columnNames) {
         if (everyColumnWidth(name) < kColumnMinWidth) {
           columnsWidthMap[name]?.value = kColumnMinWidth;
@@ -176,7 +180,6 @@ class TableViewState extends State<TableView> {
 
         /// Build a list view
         Widget listWidget = Scrollbar(
-          isAlwaysShown: true,
           controller: widget.scrollController,
           child: ListView.builder(
             controller: widget.scrollController,
@@ -185,7 +188,8 @@ class TableViewState extends State<TableView> {
               Map<String, Object?> map = widget.rowsResults[index];
               List<String> keys = map.keys.toList();
               List<Widget> rowChildren = keys
-                  .map((name) => getOneRowElement(name: name, value: map[name]?.toString() ?? 'NULL', width: everyColumnWidth(name)))
+                  .map((name) => getOneRowElement(
+                      name: name, value: map[name]?.toString() ?? 'NULL', width: everyColumnWidth(name)))
                   .toList();
               return Listener(
                 onPointerDown: (e) => selectIndex.value = index,
@@ -214,7 +218,12 @@ class TableViewState extends State<TableView> {
 
         return Container(
           height: widget.height,
-          padding: EdgeInsets.symmetric(horizontal: 8),
+          padding: EdgeInsets.only(
+            left: 8,
+            right: 8,
+            top: 8,
+            bottom: 25,
+          ),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -236,7 +245,6 @@ class TableViewState extends State<TableView> {
 
     return Column(
       children: [
-        SizedBox(height: 32),
         titleWidget,
         oneTableWidget,
       ],
