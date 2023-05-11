@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:example/common/util/date_util.dart';
+import 'package:example/common/util/dates_utils.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
 
 class Bread {
@@ -73,8 +73,8 @@ class BreadFake {
           "uuid": '${breadSeq++}${StringsUtils.fakeUUID()}',
           "breadType": Random().nextBool() ? "voice" : "common",
           "breadContent": content ?? "You are so handsome!!!!!",
-          "breadUpdateTime": updateTime != null ? DateUtil.format(updateTime) : "2023-04-01 00:00:00",
-          "breadCreateTime": createTime != null ? DateUtil.format(createTime) : "2023-03-03 00:00:00",
+          "breadUpdateTime": updateTime != null ? DatesUtils.format(updateTime) : "2023-04-01 00:00:00",
+          "breadCreateTime": createTime != null ? DatesUtils.format(createTime) : "2023-03-03 00:00:00",
           "breadTagList": [
             {"tagId": breadTagId++, "tagName": "最新", "tagFlag": "newest"},
             {"tagId": breadTagId++, "tagName": "头条", "tagFlag": "headline"},

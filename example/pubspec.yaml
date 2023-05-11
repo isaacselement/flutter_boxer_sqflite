@@ -34,10 +34,7 @@ dependencies:
 
   synchronized_call:
 
-  flutter_dialog_shower:
-    git:
-      url: https://github.com/isaacselement/flutter_dialog_shower.git
-      ref: 31f1db8919ede6c5f8c659f516b122aa24fa4317
+  flutter_dialog_shower: ^1.2.4
 
   intl:
 

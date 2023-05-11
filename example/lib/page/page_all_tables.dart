@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:example/common/util/date_util.dart';
+import 'package:example/common/util/dates_utils.dart';
 import 'package:example/database/box_database_manager.dart';
-import 'package:example/database/biz_table_cache.dart';
+import 'package:example/database/box_table_cache.dart';
 import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread.dart';
 import 'package:example/widget/table_view.dart';
@@ -31,8 +31,8 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
     super.initState();
     Boxes.getWidgetsBinding().addObserver(this);
 
-    BizTableCache.currentUid = 110;
-    BizTableCache.currentRoleId = 10086;
+    BoxTableCache.currentUserId = 110;
+    BoxTableCache.currentRoleId = 10086;
 
     refresh();
   }
@@ -143,7 +143,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                 onPressed: () async {
                   int rowId = await BoxTableManager.articleListTable.mInsert<Map>(BreadFake.oneMap(), translator: (e) {
                     Map<String, Object?> map = BoxTableManager.articleListTable.insertionTranslator!.call(e);
-                    map[BizTableCache.kCOLUMN_TYPE] = 'newest';
+                    map[BoxTableCache.kCOLUMN_TYPE] = 'newest';
                     // map[BizTableCache.kCOLUMN_ITEM_ID] = e['uuid'];
                     return map;
                   });
@@ -152,7 +152,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                   int insertRowId0 = await BoxTableManager.articleListTable.mInsertModel<Bread>(BreadFake.oneModel);
                   int insertRowId1 = await BoxTableManager.articleListTable.mInsertModel<Bread>(
                     BreadFake.oneModel,
-                    translator: (e) => {BizTableCache.kCOLUMN_TYPE: 'headline'},
+                    translator: (e) => {BoxTableCache.kCOLUMN_TYPE: 'headline'},
                   );
                   BxLoG.d('--------->>>>> inserted id Bread Model: $insertRowId0, $insertRowId1');
 
@@ -170,7 +170,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                   // BxLoG.d('======= $result');
 
                   Bread? bread = (await BoxTableManager.articleListTable.mQueryAsModels(fromJson: (e) => Bread.fromJson(e))).firstSafe;
-                  bread?.breadContent = '${DateUtil.format(DateTime.now())}: Yes, i agree~~~~~~~ 👠⌘🎒👠❗️';
+                  bread?.breadContent = '${DatesUtils.format(DateTime.now())}: Yes, i agree~~~~~~~ 👠⌘🎒👠❗️';
                   // int updateCount = await BizTableManager.articleListTable.mUpdateModel(bread, options: BoxerQueryOption.eq(columns: [BizTableCache.kCOLUMN_ITEM_ID], values: [bread?.uuid]));
                   int updateCount = await BoxTableManager.articleListTable.mUpdateModel(bread);
                   BxLoG.d('--------->>>>> model updated count: $updateCount');
@@ -214,8 +214,8 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
       List<Map> items = [BreadFake.oneMap(), BreadFake.oneMap(), BreadFake.oneMap(), BreadFake.oneMap()];
       List<Object?>? insertionIds = await BoxTableManager.articleListTable.resetWithItems<Map>(items, translator: (e) {
         Map<String, Object?> map = BoxTableManager.articleListTable.insertionTranslator!.call(e);
-        map[BizTableCache.kCOLUMN_TYPE] = 'force_read';
-        map[BizTableCache.kCOLUMN_ITEM_ID] = e['uuid'];
+        map[BoxTableCache.kCOLUMN_TYPE] = 'force_read';
+        map[BoxTableCache.kCOLUMN_ITEM_ID] = e['uuid'];
         return map;
       }, syncType: batchSyncType);
       BxLoG.d('--->>>>> $batchSyncType insertion ids: $insertionIds');

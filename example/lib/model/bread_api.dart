@@ -1,9 +1,9 @@
-import 'package:example/common/util/date_util.dart';
+import 'package:example/common/util/dates_utils.dart';
 import 'package:example/model/bread.dart';
 
 class BreadApi {
   static Future<List<Map>> getList({Duration? duration}) async {
-    String date = DateUtil.format(DateTime.now(), pattern: 'HH:mm:ss');
+    String date = DatesUtils.format(DateTime.now(), pattern: 'HH:mm:ss');
     await Future.delayed(duration ?? const Duration(milliseconds: 3000));
     return [for (int i = 0; i < 10; i++) BreadFake.oneMap(content: 'From API $date', createTime: DateTime.now())];
   }

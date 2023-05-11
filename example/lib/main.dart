@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:example/app.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -12,24 +14,19 @@ void main() {
   };
 
   /// Run App
-  runApp(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: App(),
-    ),
-  );
+  void runApplication() {
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: App(),
+      ),
+    );
+  }
+
+  runApplication();
 
   // runZonedGuarded(
-  //   () {
-  //     /// Run App
-  //     runApp(
-  //       MaterialApp(
-  //         debugShowCheckedModeBanner: false,
-  //         home: App(),
-  //       ),
-  //     );
-  //   },
-  //
+  //   runApplication,
   //   /// Unhandled Exception
   //   (Object error, StackTrace stack) {
   //     assert(() {

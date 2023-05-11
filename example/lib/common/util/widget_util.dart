@@ -4,9 +4,9 @@ import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
 
 class WidgetUtil {
-  static get _editorBoxWidth => 400 >= SizesUtils.screenWidth ? SizesUtils.screenWidth - 100 : 400.toDouble();
+  static get _editorBoxWidth => 400 >= ScreensUtils.screenWidth ? ScreensUtils.screenWidth - 100 : 400.toDouble();
 
-  static get _editorBoxHeight => 300 >= SizesUtils.screenWidth ? SizesUtils.screenWidth - 100 : 300.toDouble();
+  static get _editorBoxHeight => 300 >= ScreensUtils.screenWidth ? ScreensUtils.screenWidth - 100 : 300.toDouble();
 
   static Widget newEditBox({double? width, double? height, TextEditingController? controller}) {
     return Container(

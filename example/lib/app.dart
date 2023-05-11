@@ -56,7 +56,7 @@ class AppState extends State<App> with SingleTickerProviderStateMixin {
     appContext = context;
     BxLoG.d('--------->>>>> App Rebuild!!!');
 
-    SizesUtils.init(context);
+    ScreensUtils.context = context;
     DialogShower.init(context);
     OverlayShower.init(context);
     DialogWrapper.centralOfShower ??= (DialogShower shower, {Widget? child}) {

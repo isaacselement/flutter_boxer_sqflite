@@ -1,5 +1,5 @@
 import 'package:example/database/box_database_manager.dart';
-import 'package:example/database/biz_table_handler.dart';
+import 'package:example/database/box_table_handler.dart';
 import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread_api.dart';
 import 'package:example/widget/table_view.dart';

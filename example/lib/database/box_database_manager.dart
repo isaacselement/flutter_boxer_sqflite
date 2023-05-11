@@ -1,4 +1,4 @@
-import 'package:example/database/biz_table_cache.dart';
+import 'package:example/database/box_table_cache.dart';
 import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
@@ -40,7 +40,7 @@ class BoxDatabaseManager {
     BoxerTableTranslator.setModelTranslator<Bread>(
       (e) => Bread.fromJson(e),
       (e) => e.toJson(),
-      (e) => {BizTableCache.kCOLUMN_ITEM_ID: e.uuid},
+      (e) => {BoxTableCache.kCOLUMN_ITEM_ID: e.uuid},
     );
   }
 }

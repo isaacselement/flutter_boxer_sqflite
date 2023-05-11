@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:example/database/biz_table_cache.dart';
+import 'package:example/database/box_table_cache.dart';
 import 'package:example/database/box_table_manager.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:synchronized_call/synchronized_call.dart';
@@ -47,7 +47,7 @@ class BizTableArticleList {
   static Future<List<Map>> getArticleList(String flag) async {
     try {
       String type = flag;
-      BoxerQueryOption op = BoxerQueryOption.e(column: BizTableCache.kCOLUMN_TYPE, value: type);
+      BoxerQueryOption op = BoxerQueryOption.e(column: BoxTableCache.kCOLUMN_TYPE, value: type);
       List<Map> articles = await BoxTableManager.articleListTable.mQueryAsMap(options: op);
       return articles;
     } catch (e, s) {
@@ -60,11 +60,11 @@ class BizTableArticleList {
   static Future<void> updateArticleList(List<dynamic> articlesJson, String? flag) async {
     try {
       String type = flag ?? '';
-      BoxerQueryOption op = BoxerQueryOption.e(column: BizTableCache.kCOLUMN_TYPE, value: type);
+      BoxerQueryOption op = BoxerQueryOption.e(column: BoxTableCache.kCOLUMN_TYPE, value: type);
       await BoxTableManager.articleListTable.resetWithItems(articlesJson, option: op, translator: (dynamic e) {
         Map<String, Object?> values = BoxTableManager.articleListTable.insertionTranslator!(e);
-        values[BizTableCache.kCOLUMN_TYPE] = type;
-        values[BizTableCache.kCOLUMN_ITEM_ID] = e is Map ? e['uuid']?.toString() ?? '' : '';
+        values[BoxTableCache.kCOLUMN_TYPE] = type;
+        values[BoxTableCache.kCOLUMN_ITEM_ID] = e is Map ? e['uuid']?.toString() ?? '' : '';
         return values;
       });
     } catch (e, s) {
@@ -114,8 +114,8 @@ class BizTableArticleStatus {
         int? maxId = await BoxTableManager.articleStatusTable.maxId();
         if (maxId != null) {
           int lessThan = maxId - count ~/ 2;
-          BoxerQueryOption op1 = BoxerQueryOption.l(column: BizTableCache.kCOLUMN_ID, value: lessThan);
-          BoxerQueryOption op2 = BoxerQueryOption.isNull(column: BizTableCache.kCOLUMN_TYPE);
+          BoxerQueryOption op1 = BoxerQueryOption.l(column: BoxTableCache.kCOLUMN_ID, value: lessThan);
+          BoxerQueryOption op2 = BoxerQueryOption.isNull(column: BoxTableCache.kCOLUMN_TYPE);
           BoxerQueryOption ops = BoxerQueryOption.merge([op1, op2]);
           int deleted = await BoxTableManager.articleStatusTable.delete(where: ops.where, whereArgs: ops.whereArgs);
           BxLoG.d('markArticleAsRead, delete count: $deleted');
@@ -148,7 +148,7 @@ class BizTableArticleStatus {
       try {
         /// 记录已播放完毕
         if (await isArticleVoiceFullyPlayed(articleUUID)) return;
-        BoxerQueryOption op1 = BoxerQueryOption.e(column: BizTableCache.kCOLUMN_TYPE, value: kTYPE_VOICE_PLAY_DONE);
+        BoxerQueryOption op1 = BoxerQueryOption.e(column: BoxTableCache.kCOLUMN_TYPE, value: kTYPE_VOICE_PLAY_DONE);
         int? count = await BoxTableManager.articleStatusTable.count(op1);
         if (count != null && count > 100) {
           await BoxTableManager.articleStatusTable.clear(op1);
