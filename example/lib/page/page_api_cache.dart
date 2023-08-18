@@ -128,7 +128,6 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
                     value: isThrowErrorOnRequest,
                     activeColor: Colors.red,
                     onChanged: (bool value) {
-                      // This is called when the user toggles the switch.
                       setState(() {
                         isThrowErrorOnRequest = value;
                       });
@@ -163,7 +162,9 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
     map[TableView.keyTblRowCount] = rowsResults.length;
     map[TableView.keyTblRowResults] = rowsResults;
     datasource.add(map);
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> refreshDataSourceDuration({
@@ -199,11 +200,13 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
         Map<String, dynamic>? map = datasource.first;
         map[TableView.keyTblRowCount] = value.length;
         map[TableView.keyTblRowResults] = value;
-        setState(() {});
+        if (mounted) {
+          setState(() {});
+        }
       },
       onLoadError: (error, stack, errorType) {
         String msg = "##### Error: $error [$errorType]";
-        if (errorType == BoxerCacheHandlerErrorType.CACHE) {
+        if (errorType == BoxerCacheHandlerType.CACHE) {
           ToastHelper.showRed(msg);
         } else {
           ToastHelper.showGreen(msg);

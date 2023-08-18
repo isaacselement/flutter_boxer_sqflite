@@ -10,9 +10,11 @@ class BoxerCacheHandler<T> {
 
   void Function(T value) updateCache;
   void Function(T value, bool isFromCache) updateView;
-  void Function(dynamic error, dynamic stack, BoxerCacheHandlerErrorType type) onLoadError;
 
-  BoxerCacheHandler({required this.updateCache, required this.updateView, required this.onLoadError});
+  /// Instance Error callback for [requestFuture] and [cacheFuture]
+  BoxerCacheHandlerErrorCallback? onLoadError;
+
+  BoxerCacheHandler({required this.updateCache, required this.updateView, this.onLoadError});
 
   /// Unless [requestFuture] is completed before [cacheFuture],
   /// both [requestFuture] and [cacheFuture] will call [updateView] to update the view
@@ -26,7 +28,11 @@ class BoxerCacheHandler<T> {
   /// for there is indeed such scenarios:
   /// 1. [requestFuture] is null, just want to reload the cache data, and update the view
   /// 2. [cacheFuture] is null, just need the requested data to update view and cache, but no need to read the cache
-  Future<T?> getData({required Future<T>? requestFuture, required Future<T>? cacheFuture}) {
+  Future<T?> getData({
+    required Future<T>? requestFuture,
+    required Future<T>? cacheFuture,
+    BoxerCacheHandlerErrorCallback? onError,
+  }) {
     Future<T>? f1;
     Future<T>? f2;
 
@@ -41,7 +47,7 @@ class BoxerCacheHandler<T> {
         /// Update UI And Cache
         update(value, isValueFromCache: false, isOnlyUpdateView: false);
       }).onError((e, s) {
-        onLoadError.call(e, s, BoxerCacheHandlerErrorType.REQUEST);
+        (onError ?? onLoadError)?.call(e, s, BoxerCacheHandlerType.REQUEST);
       });
 
       if (isDisableCache == true) return;
@@ -62,7 +68,7 @@ class BoxerCacheHandler<T> {
           BoxerLogger.d(null, 'Request data already response successfully, no need to call error callback');
           return;
         }
-        onLoadError.call(e, s, BoxerCacheHandlerErrorType.CACHE);
+        (onError ?? onLoadError)?.call(e, s, BoxerCacheHandlerType.CACHE);
       });
     }();
 
@@ -95,10 +101,6 @@ class BoxerCacheHandler<T> {
   }
 }
 
-enum BoxerCacheHandlerErrorType {
-  /// Cache error
-  CACHE,
+enum BoxerCacheHandlerType { CACHE, REQUEST }
 
-  /// Request error
-  REQUEST,
-}
+typedef BoxerCacheHandlerErrorCallback = Function(dynamic error, dynamic stack, BoxerCacheHandlerType type);

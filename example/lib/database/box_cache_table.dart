@@ -26,7 +26,7 @@ class BoxCacheTable extends BoxerTableTranslator {
       // Limit the number of entries to a specified capacity to avoid infinite insertion
       int? capacity = 5000;
       if ((await selectCount() ?? 0) > capacity) {
-        BoxerLogger.d(TAG, '$tableName insert exceed limits capacity $capacity !');
+        BoxerLogger.e(TAG, '$tableName insert exceed limits capacity $capacity !');
         return true;
       }
       return false;
@@ -136,7 +136,7 @@ class BoxCacheTable extends BoxerTableTranslator {
       List<Map> list = await mQueryAsMap(options: getOptions(id: id, type: type, itemId: itemId));
       return last ? list.lastSafe : list.firstSafe;
     } catch (e, s) {
-      BoxerLogger.d(TAG, '$tableName getOneAsMap error: $e, $s');
+      BoxerLogger.e(TAG, '$tableName getOneAsMap error: $e, $s');
     }
     return null;
   }

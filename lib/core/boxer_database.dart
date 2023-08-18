@@ -29,7 +29,7 @@ class BoxerDatabase {
     });
   }
 
-  /// Create and Open Database instance
+  /// Create and Open Database instance. set [_database] and [openingCompleter] to null if u want to re-open database
   Completer<Database?>? openingCompleter;
 
   FutureOr<Database?> open() async {
