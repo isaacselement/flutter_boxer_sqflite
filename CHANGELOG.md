@@ -1,3 +1,7 @@
+# 1.0.2
+
+* Enhance: Rename `isDisableCache` to `isEnableCache` on `BoxerCacheHandler`
+
 # 1.0.1
 
 * Enhance: Offered a parameter `onError` on every call of `getData`

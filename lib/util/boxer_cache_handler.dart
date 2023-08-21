@@ -5,8 +5,8 @@ import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 class BoxerCacheHandler<T> {
   static const String TAG = 'BoxCacheTableHandler';
 
-  /// Whether to disable the cache feature
-  bool isDisableCache = false;
+  /// Whether to enable the cache feature
+  bool isEnableCache = true;
 
   void Function(T value) updateCache;
   void Function(T value, bool isFromCache) updateView;
@@ -50,7 +50,7 @@ class BoxerCacheHandler<T> {
         (onError ?? onLoadError)?.call(e, s, BoxerCacheHandlerType.REQUEST);
       });
 
-      if (isDisableCache == true) return;
+      if (isEnableCache == false) return;
 
       f2 = cacheFuture;
       cacheFuture?.then((value) {
@@ -94,7 +94,7 @@ class BoxerCacheHandler<T> {
 
     /// Need to update cache or not?
     if (isOnlyUpdateView == true) return;
-    if (isDisableCache == true) return;
+    if (isEnableCache == false) return;
 
     /// Update to cache
     updateCache(value);
