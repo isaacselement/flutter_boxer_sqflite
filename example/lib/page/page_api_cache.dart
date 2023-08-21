@@ -214,7 +214,7 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
       },
     );
 
-    handler.getData(requestFuture: requestFuture, cacheFuture: cacheFuture).then((value) {
+    handler.getData(loadRequestFuture: requestFuture, loadCacheFuture: cacheFuture).then((value) {
       // null if error
       print('【getData】 DONE: $value');
     }).onError((e, s) {

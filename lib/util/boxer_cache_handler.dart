@@ -16,21 +16,21 @@ class BoxerCacheHandler<T> {
 
   BoxerCacheHandler({required this.updateCache, required this.updateView, this.onLoadError});
 
-  /// Unless [requestFuture] is completed before [cacheFuture],
-  /// both [requestFuture] and [cacheFuture] will call [updateView] to update the view
+  /// Unless [loadRequestFuture] is completed before [loadCacheFuture],
+  /// both [loadRequestFuture] and [loadCacheFuture] will call [updateView] to update the view
   ///
-  /// [requestFuture] will call [updateCache] to update the cache after completion
-  /// [cacheFuture] itself is a cache so there is no need to update the cache
+  /// [loadCacheFuture] itself is a cache so there is no need to update the cache
+  /// [loadRequestFuture] will call [updateCache] to update the cache after completion
   ///
-  /// [requestFuture] or [cacheFuture] can pass null value, required to explicitly pass null
+  /// [loadCacheFuture] and [loadRequestFuture] can explicitly pass null value
   /// so as to ensure that the caller knows that he has explicitly passed null
   ///
   /// for there is indeed such scenarios:
-  /// 1. [requestFuture] is null, just want to reload the cache data, and update the view
-  /// 2. [cacheFuture] is null, just need the requested data to update view and cache, but no need to read the cache
+  /// 1. [loadRequestFuture] is null, just want to reload the cache data, and update the view
+  /// 2. [loadCacheFuture] is null, just need the requested data to update view and cache, but no need to read the cache
   Future<T?> getData({
-    required Future<T>? requestFuture,
-    required Future<T>? cacheFuture,
+    required Future<T>? loadCacheFuture,
+    required Future<T>? loadRequestFuture,
     BoxerCacheHandlerErrorCallback? onError,
   }) {
     Future<T>? f1;
@@ -39,8 +39,8 @@ class BoxerCacheHandler<T> {
     List<T?> results = [null, null];
     bool isRequestSuccess = false;
     () {
-      f1 = requestFuture;
-      requestFuture?.then((value) {
+      f1 = loadRequestFuture;
+      loadRequestFuture?.then((value) {
         results.first = value;
         isRequestSuccess = true;
 
@@ -52,8 +52,8 @@ class BoxerCacheHandler<T> {
 
       if (isEnableCache == false) return;
 
-      f2 = cacheFuture;
-      cacheFuture?.then((value) {
+      f2 = loadCacheFuture;
+      loadCacheFuture?.then((value) {
         /// No need the cache data in this moment, cause request data already response successfully
         if (isRequestSuccess) {
           BoxerLogger.d(null, 'Request data already response, no need to use cache data');
