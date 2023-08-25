@@ -23,7 +23,7 @@ class BoxerQueryOption {
   }
 
   factory BoxerQueryOption.eq({required List<String> columns, required List<Object?> values}) {
-    isItIllegal(columns: columns, values: values);
+    ensureLegality(columns: columns, values: values);
     String _where = columns.map((e) => '$e = ?').toList().join(' AND ');
     return BoxerQueryOption()
       ..where = _where
@@ -36,7 +36,7 @@ class BoxerQueryOption {
   }
 
   factory BoxerQueryOption.neq({required List<String> columns, required List<Object?> values}) {
-    isItIllegal(columns: columns, values: values);
+    ensureLegality(columns: columns, values: values);
     String _where = columns.map((e) => '$e != ?').toList().join(' AND '); // != or <> both ok
     return BoxerQueryOption()
       ..where = _where
@@ -49,7 +49,7 @@ class BoxerQueryOption {
   }
 
   factory BoxerQueryOption.lt({required List<String> columns, required List<Object?> values}) {
-    isItIllegal(columns: columns, values: values);
+    ensureLegality(columns: columns, values: values);
     String _where = columns.map((e) => '$e < ?').toList().join(' AND ');
     return BoxerQueryOption()
       ..where = _where
@@ -62,7 +62,7 @@ class BoxerQueryOption {
   }
 
   factory BoxerQueryOption.gt({required List<String> columns, required List<Object?> values}) {
-    isItIllegal(columns: columns, values: values);
+    ensureLegality(columns: columns, values: values);
     String _where = columns.map((e) => '$e > ?').toList().join(' AND ');
     return BoxerQueryOption()
       ..where = _where
@@ -92,7 +92,7 @@ class BoxerQueryOption {
       ..whereArgs = values;
   }
 
-  static bool isItIllegal({required List<String> columns, required List<Object?> values}) {
+  static bool ensureLegality({required List<String> columns, required List<Object?> values}) {
     assert(columns.length == values.length, '[BoxerQueryOption] ERROR: column & value length not the same!!!');
     List<String> copy = List<String>.from(columns);
     copy.removeWhere((e) => e.trim().isEmpty);

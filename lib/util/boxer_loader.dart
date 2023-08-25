@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
-class BoxerCacheHandler<T> {
-  static const String TAG = 'BoxCacheTableHandler';
+class BoxerLoader<T> {
+  static const String TAG = 'BoxerLoader';
 
   /// Whether to enable the cache feature
   bool isEnableCache = true;
@@ -12,9 +12,9 @@ class BoxerCacheHandler<T> {
   void Function(T value, bool isFromCache) updateView;
 
   /// Instance Error callback for [requestFuture] and [cacheFuture]
-  BoxerCacheHandlerErrorCallback? onLoadError;
+  BoxerLoadErrorCallback? onLoadError;
 
-  BoxerCacheHandler({required this.updateCache, required this.updateView, this.onLoadError});
+  BoxerLoader({required this.updateCache, required this.updateView, this.onLoadError});
 
   /// Unless [loadRequestFuture] is completed before [loadCacheFuture],
   /// both [loadRequestFuture] and [loadCacheFuture] will call [updateView] to update the view
@@ -23,7 +23,7 @@ class BoxerCacheHandler<T> {
   /// [loadRequestFuture] will call [updateCache] to update the cache after completion
   ///
   /// [loadCacheFuture] and [loadRequestFuture] can explicitly pass null value
-  /// so as to ensure that the caller knows that he has explicitly passed null
+  /// so as to ensure that the caller knows that he has explicitly send a null value
   ///
   /// for there is indeed such scenarios:
   /// 1. [loadRequestFuture] is null, just want to reload the cache data, and update the view
@@ -31,12 +31,12 @@ class BoxerCacheHandler<T> {
   Future<T?> getData({
     required Future<T>? loadCacheFuture,
     required Future<T>? loadRequestFuture,
-    BoxerCacheHandlerErrorCallback? onError,
+    BoxerLoadErrorCallback? onError,
   }) {
     Future<T>? f1;
     Future<T>? f2;
 
-    List<T?> results = [null, null];
+    List<dynamic> results = [Null, Null];
     bool isRequestSuccess = false;
     () {
       f1 = loadRequestFuture;
@@ -47,7 +47,7 @@ class BoxerCacheHandler<T> {
         /// Update UI And Cache
         update(value, isValueFromCache: false, isOnlyUpdateView: false);
       }).onError((e, s) {
-        (onError ?? onLoadError)?.call(e, s, BoxerCacheHandlerType.REQUEST);
+        (onError ?? onLoadError)?.call(e, s, BoxerLoadType.REQUEST);
       });
 
       if (isEnableCache == false) return;
@@ -68,21 +68,30 @@ class BoxerCacheHandler<T> {
           BoxerLogger.d(null, 'Request data already response successfully, no need to call error callback');
           return;
         }
-        (onError ?? onLoadError)?.call(e, s, BoxerCacheHandlerType.CACHE);
+        (onError ?? onLoadError)?.call(e, s, BoxerLoadType.CACHE);
       });
     }();
 
-    /// TODO .... for fallback value ... To Be Optimized: We have to wait for two of them to complete
+    /// For fallback to the caller, using a completer to return the fallback future.
     Completer<T?> wholeCompleter = Completer();
     List<Future<T>> futures = [];
     if (f1 != null) futures.add(f1!);
     if (f2 != null) futures.add(f2!);
+    if (futures.length > 1) {
+      futures.first.then((value) {
+        // if the first future request is ok, then we can complete the whole completer
+        wholeCompleter.complete(value);
+      }).onError((e, s) {
+        // if the first future has error, then we have to wait for the second future
+      });
+    }
+    T? getValue() => results.first != Null ? results.first as T? : (results.last != Null ? results.last as T? : null);
     Future.wait(futures).then((value) {
       if (wholeCompleter.isCompleted) return;
-      wholeCompleter.complete(results.first != null ? results.first : results.last);
+      wholeCompleter.complete(getValue());
     }).onError((e, s) {
       if (wholeCompleter.isCompleted) return;
-      wholeCompleter.complete(results.first != null ? results.first : results.last);
+      wholeCompleter.complete(getValue());
     });
 
     return wholeCompleter.future;
@@ -101,6 +110,6 @@ class BoxerCacheHandler<T> {
   }
 }
 
-enum BoxerCacheHandlerType { CACHE, REQUEST }
+enum BoxerLoadType { CACHE, REQUEST }
 
-typedef BoxerCacheHandlerErrorCallback = Function(dynamic error, dynamic stack, BoxerCacheHandlerType type);
+typedef BoxerLoadErrorCallback = Function(dynamic error, dynamic stack, BoxerLoadType type);

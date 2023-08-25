@@ -41,30 +41,35 @@ class BoxerLogger {
       return;
     }
     assert(() {
-      String prefix = 'V';
-      switch (level) {
-        case 0:
-          prefix = 'V';
-          break;
-        case 1:
-          prefix = 'D';
-          break;
-        case 2:
-          prefix = 'I';
-          break;
-        case 3:
-          prefix = 'W';
-          break;
-        case 4:
-          prefix = 'E';
-          break;
-        case 5:
-          prefix = 'F';
-          break;
-      }
+      String prefix = BoxerLogger.levelToString(level);
       print('$prefix/${DateTime.now()}: [$tag] $message');
       return true;
     }());
+  }
+
+  static String levelToString(int level) {
+    String prefix = 'V';
+    switch (level) {
+      case 0:
+        prefix = 'V';
+        break;
+      case 1:
+        prefix = 'D';
+        break;
+      case 2:
+        prefix = 'I';
+        break;
+      case 3:
+        prefix = 'W';
+        break;
+      case 4:
+        prefix = 'E';
+        break;
+      case 5:
+        prefix = 'F';
+        break;
+    }
+    return prefix;
   }
 
   /// Database operations error handler, execute or query sql etc...

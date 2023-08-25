@@ -1,11 +1,6 @@
-# 1.0.3
+# 1.0.4
 
-* Rename `cacheFuture` to `loadCacheFuture` on `BoxerCacheHandler`
-* Rename `requestFuture` to `loadRequestFuture` on `BoxerCacheHandler`
-
-# 1.0.2
-
-* Enhance: Rename `isDisableCache` to `isEnableCache` on `BoxerCacheHandler`
+* Rename `BoxerCacheHandler` to `BoxerLoader`
 
 # 1.0.1
 

@@ -1,5 +1,4 @@
 import 'package:example/database/box_cache_table.dart';
-import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
@@ -23,9 +22,14 @@ class BoxDatabaseManager {
       /// 输出、上报日志/Sentry
     };
 
+    BoxerLogger.logger = (level, tag, message) {
+      String prefix = BoxerLogger.levelToString(level);
+      print('$prefix/${DateTime.now()}: [$tag] $message');
+    };
+
     /// 注册各个表实例
-    boxer.registerTable(BoxTableManager.bizCacheTable);
-    boxer.registerTable(BoxTableManager.bizCacheStudent);
+    boxer.registerTable(BoxTableManager.cacheTableCommon);
+    boxer.registerTable(BoxTableManager.cacheTableStudent);
 
     /// TODO ...
     /// 注册Model与Json的转换器, 用于插入与更新
@@ -41,4 +45,15 @@ class BoxDatabaseManager {
     /// 或者直接设置已打开的 database 对象
     // db.setDatabase(database);
   }
+}
+
+/// Table Manager
+class BoxTableManager {
+  /// 表名私有，业务方通过 BoxCacheTable.tableName 来访问
+  static const String _kNAME_BIZ_COMMON = 'cache_table_common';
+  static const String _kNAME_BIZ_STUDENTS = 'cache_table_student';
+
+  /// 请在 CacheTableHandler 写好对应的 get 方法来给业务通过 CacheTableHandler 来访问
+  static BoxCacheTable cacheTableCommon = BoxCacheTable(tableName: _kNAME_BIZ_COMMON);
+  static BoxCacheTable cacheTableStudent = BoxCacheTable(tableName: _kNAME_BIZ_STUDENTS);
 }

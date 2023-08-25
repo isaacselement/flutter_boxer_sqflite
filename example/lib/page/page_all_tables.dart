@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:example/common/util/dates_utils.dart';
 import 'package:example/common/util/widget_util.dart';
 import 'package:example/database/box_cache_table.dart';
+import 'package:example/database/box_cache_handler.dart';
 import 'package:example/database/box_database_manager.dart';
-import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread.dart';
 import 'package:example/model/bread_api.dart';
 import 'package:example/widget/table_view.dart';
@@ -131,9 +131,9 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
               CupertinoButton(
                 child: Text('Get all', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
-                  List<Map> results = await BoxTableManager.bizCacheTable.mQueryAsMap();
+                  List<Map> results = await BoxCacheHandler.commonTable.mQueryAsMap();
                   List<Bread> breads =
-                      await BoxTableManager.bizCacheTable.mQueryAsModels<Bread>(fromJson: (e) => Bread.fromJson(e));
+                      await BoxCacheHandler.commonTable.mQueryAsModels<Bread>(fromJson: (e) => Bread.fromJson(e));
                   BoxerLogger.d(TAG, '--------->>>>> query all as map: ${json.encode(results)}');
                   BoxerLogger.d(TAG, '--------->>>>> query all as breads: $breads');
                 },
@@ -141,16 +141,16 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
               CupertinoButton(
                 child: Text('Clear & Reset auto id', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
-                  await BoxTableManager.bizCacheTable.clear();
-                  await BoxTableManager.bizCacheTable.resetAutoId();
+                  await BoxCacheHandler.commonTable.clear();
+                  await BoxCacheHandler.commonTable.resetAutoId();
                   refreshDataSourceWithScrollToBottom();
                 },
               ),
               CupertinoButton(
                 child: Text('Insert one', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
-                  int insertRowId0 = await BoxTableManager.bizCacheTable.mInsertModel<Bread>(BreadGenerator.oneModel);
-                  int insertRowId1 = await BoxTableManager.bizCacheTable.mInsertModel<Bread>(
+                  int insertRowId0 = await BoxCacheHandler.commonTable.mInsertModel<Bread>(BreadGenerator.oneModel);
+                  int insertRowId1 = await BoxCacheHandler.commonTable.mInsertModel<Bread>(
                     BreadGenerator.oneModel,
                     translator: (e) => {
                       BoxCacheTable.kCOLUMN_ITEM_TYPE: 'headline',
@@ -158,10 +158,10 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                   );
                   BoxerLogger.d(TAG, '--------->>>>> inserted id Bread Model: $insertRowId0, $insertRowId1');
 
-                  int insertRowId2 = await BoxTableManager.bizCacheTable.mInsert<Map>(
+                  int insertRowId2 = await BoxCacheHandler.commonTable.mInsert<Map>(
                     BreadGenerator.oneMap(),
                     translator: (e) {
-                      Map<String, Object?> map = BoxTableManager.bizCacheTable.insertionTranslator!.call(e);
+                      Map<String, Object?> map = BoxCacheHandler.commonTable.insertionTranslator!.call(e);
                       map[BoxCacheTable.kCOLUMN_ITEM_TYPE] = 'newest';
                       // map[BoxCacheTable.kCOLUMN_ITEM_ID] = e['uuid'];
                       return map;
@@ -169,23 +169,23 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                   );
                   BoxerLogger.d(TAG, '--------->>>>> inserted id Map: $insertRowId2');
 
-                  refreshDataSourceWithScrollToBottom(BoxTableManager.kNAME_BIZ_COMMON);
+                  refreshDataSourceWithScrollToBottom(BoxCacheHandler.commonTable.tableName);
                 },
               ),
               CupertinoButton(
                 child: Text('Update one', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Bread> results =
-                      await BoxTableManager.bizCacheTable.mQueryAsModels(fromJson: (e) => Bread.fromJson(e));
+                      await BoxCacheHandler.commonTable.mQueryAsModels(fromJson: (e) => Bread.fromJson(e));
                   Bread? bread = results.firstSafe;
                   bread?.breadContent = '${DatesUtils.format(DateTime.now())}: Yes, i agree~~~~~~~ 👠⌘🎒👠❗️';
-                  // int updateCount = await BoxTableManager.bizCacheTable.mUpdateModel(
+                  // int updateCount = await CacheTableHandler.commonTable.mUpdateModel(
                   //   bread,
                   //   options: BoxerQueryOption.eq(columns: [BoxCacheTable.kCOLUMN_ITEM_ID], values: [bread?.uuid]),
                   // );
-                  int updateCount = await BoxTableManager.bizCacheTable.mUpdateModel(bread);
+                  int updateCount = await BoxCacheHandler.commonTable.mUpdateModel(bread);
                   BoxerLogger.d(TAG, '--------->>>>> model updated count: $updateCount');
-                  refreshDataSourceWithScrollToBottom(BoxTableManager.kNAME_BIZ_COMMON);
+                  refreshDataSourceWithScrollToBottom(BoxCacheHandler.commonTable.tableName);
                 },
               ),
               CupertinoButton(
@@ -232,10 +232,10 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
       ];
       String itemType = StringsUtils.random(6);
       int beginTime = DateTime.now().millisecondsSinceEpoch;
-      List<Object?>? insertedIds = await BoxTableManager.bizCacheTable.resetWithItems<Map>(
+      List<Object?>? insertedIds = await BoxCacheHandler.commonTable.resetWithItems<Map>(
         fiveItems,
         translator: (e) {
-          Map<String, Object?> map = BoxTableManager.bizCacheTable.insertionTranslator!.call(e);
+          Map<String, Object?> map = BoxCacheHandler.commonTable.insertionTranslator!.call(e);
           map[BoxCacheTable.kCOLUMN_ITEM_TYPE] = 'CLEAR_$itemType';
           map[BoxCacheTable.kCOLUMN_ITEM_ID] = e['uuid'];
           return map;
@@ -248,7 +248,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
       lastType = itemType;
       BoxerLogger.d(
           TAG, '>>>>> 【$itemType】 cost: ${cost}ms, $syncBatchLockTransactionType, insertion ids: $insertedIds');
-      refreshDataSourceWithScrollToBottom(BoxTableManager.kNAME_BIZ_COMMON);
+      refreshDataSourceWithScrollToBottom(BoxCacheHandler.commonTable.tableName);
     }
 
     /// do 6 times async jobs

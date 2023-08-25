@@ -14,31 +14,28 @@ class ToastHelper {
   static OverlayShower showColor(
     String message, {
     TextStyle? textStyle,
-    bool isStateful = false,
     Duration? duration = const Duration(milliseconds: 3000),
   }) {
-    return show(message, textStyle: textStyle, isStateful: isStateful, duration: duration);
+    return show(message, textStyle: textStyle, duration: duration);
+  }
+
+  static OverlayShower showError(e, s) {
+    return show('Exception:\n$e\n$s\n');
   }
 
   static OverlayShower show(
     String message, {
     TextStyle? textStyle,
-    bool isStateful = false,
     Duration? duration = const Duration(milliseconds: 3000),
   }) {
     BoxerLogger.d('ToastHelper', '>>>>> $message');
-    return OverlayWidgets.showToast(
+    return OverlayWidgets.showToastInQueue(
       message,
       textStyle: textStyle,
-      isStateful: isStateful,
       onScreenDuration: duration,
       shadow: const BoxShadow(),
     )
       ..alignment = Alignment.topCenter
       ..margin = const EdgeInsets.only(top: 50);
-  }
-
-  static OverlayShower showError(e, s) {
-    return show('Exception:\n$e\n$s\n');
   }
 }

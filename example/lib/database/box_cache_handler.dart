@@ -1,15 +1,23 @@
 import 'dart:async';
 
 import 'package:example/database/box_cache_table.dart';
-import 'package:example/database/box_table_manager.dart';
+import 'package:example/database/box_database_manager.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
-class BizCacheTableHandler {
+class BoxCacheHandler {
+  static BoxCacheTable get commonTable => BoxTableManager.cacheTableCommon;
+
+  static BoxCacheTable get studentTable => BoxTableManager.cacheTableStudent;
+}
+
+class BoxCommonTableHandler {
+  static BoxCacheTable get table => BoxCacheHandler.commonTable;
+
   /// Load data from cache table
   static Future<List<Map>> loadDataList(String type) async {
     try {
       BoxerQueryOption op = BoxerQueryOption.e(column: BoxCacheTable.kCOLUMN_ITEM_TYPE, value: type);
-      return await BoxTableManager.bizCacheTable.mQueryAsMap(options: op);
+      return await table.mQueryAsMap(options: op);
     } catch (e, s) {
       BoxerLogger.d('Biz', 'Load data list error: $e, $s');
     }
@@ -21,8 +29,8 @@ class BizCacheTableHandler {
     try {
       type = type ?? '';
       BoxerQueryOption op = BoxerQueryOption.e(column: BoxCacheTable.kCOLUMN_ITEM_TYPE, value: type);
-      await BoxTableManager.bizCacheTable.resetWithItems(list, option: op, translator: (dynamic e) {
-        Map<String, Object?> values = BoxTableManager.bizCacheTable.insertionTranslator!(e);
+      await table.resetWithItems(list, option: op, translator: (dynamic e) {
+        Map<String, Object?> values = table.insertionTranslator!(e);
         values[BoxCacheTable.kCOLUMN_ITEM_TYPE] = type;
         values[BoxCacheTable.kCOLUMN_ITEM_ID] = e is Map ? e['uuid']?.toString() ?? '' : '';
         return values;

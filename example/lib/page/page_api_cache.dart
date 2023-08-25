@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:example/common/util/toast_helper.dart';
-import 'package:example/database/box_cache_table_handler.dart';
+import 'package:example/database/box_cache_handler.dart';
 import 'package:example/database/box_database_manager.dart';
-import 'package:example/database/box_table_manager.dart';
 import 'package:example/model/bread_api.dart';
 import 'package:example/widget/table_view.dart';
 import 'package:flutter/cupertino.dart';
@@ -151,7 +150,7 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
   bool isThrowErrorOnRequest = false;
 
   void clearDatasource() {
-    String tableName = BoxTableManager.kNAME_BIZ_COMMON;
+    String tableName = BoxCacheHandler.commonTable.tableName;
     listScrollControllers[tableName] ??= ScrollController();
 
     datasource.clear();
@@ -192,7 +191,7 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
   }) async {
     await BoxDatabaseManager.init();
 
-    BoxerCacheHandler<List<dynamic>> handler = BoxerCacheHandler(
+    BoxerLoader<List<dynamic>> handler = BoxerLoader(
       updateCache: (value) {
         updateToCache(value);
       },
@@ -206,7 +205,7 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
       },
       onLoadError: (error, stack, errorType) {
         String msg = "##### Error: $error [$errorType]";
-        if (errorType == BoxerCacheHandlerType.CACHE) {
+        if (errorType == BoxerLoadType.CACHE) {
           ToastHelper.showRed(msg);
         } else {
           ToastHelper.showGreen(msg);
@@ -216,10 +215,15 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
 
     handler.getData(loadRequestFuture: requestFuture, loadCacheFuture: cacheFuture).then((value) {
       // null if error
-      print('【getData】 DONE: $value');
+      print('Fallback 【getData】 DONE: $value');
+      if (value == null) {
+        ToastHelper.showRed('Fallback: Failed!!! value is null!!!');
+      } else {
+        ToastHelper.showRed('Fallback: Success get value');
+      }
     }).onError((e, s) {
       // not possible
-      print('【getData】 ERROR: $e, $s');
+      print('Fallback 【getData】 ERROR: $e, $s');
     });
   }
 
@@ -234,10 +238,10 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
     if (isThrowErrorOnCache) {
       throw Exception('Cache error');
     }
-    return await BizCacheTableHandler.loadDataList('BREAD');
+    return await BoxCommonTableHandler.loadDataList('BREAD');
   }
 
   Future<void> updateToCache(List<dynamic> value) async {
-    await BizCacheTableHandler.updateDataList(value, 'BREAD');
+    await BoxCommonTableHandler.updateDataList(value, 'BREAD');
   }
 }
