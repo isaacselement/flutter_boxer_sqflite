@@ -4,7 +4,7 @@ import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
 /// DB Manager
 class BoxDatabaseManager {
-  /// 当数据库的表设计有更新, 则更新此版本号
+  /// When the table struct of the database is updated, update this version number
   static int version = 1;
 
   static bool isInited = false;
@@ -14,46 +14,46 @@ class BoxDatabaseManager {
     if (isInited) return;
     isInited = !isInited;
 
-    /// 创建一个数据库实例
+    /// Initial a `Database` instance that wrapped by the `boxer` instance
     boxer = BoxerDatabase(version: version, name: 'database.db');
 
-    /// 错误处理
+    /// Fatal Error handler
     BoxerLogger.onFatalError = (e, s) {
-      /// 输出、上报日志/Sentry
+      // Log it or upload to Sentry
     };
 
+    /// Logger
     BoxerLogger.logger = (level, tag, message) {
       String prefix = BoxerLogger.levelToString(level);
       print('$prefix/${DateTime.now()}: [$tag] $message');
     };
 
-    /// 注册各个表实例
+    /// Register table instances
     boxer.registerTable(BoxTableManager.cacheTableCommon);
     boxer.registerTable(BoxTableManager.cacheTableStudent);
 
-    /// TODO ...
-    /// 注册Model与Json的转换器, 用于插入与更新
+    /// Register the converter of Model and Json for insert/update/query/delete
     BoxerTableTranslator.setModelTranslator<Bread>(
       (e) => Bread.fromJson(e),
       (e) => e.toJson(),
       (e) => {BoxCacheTable.kCOLUMN_ITEM_ID: e.uuid},
     );
 
-    /// 打开并连接数据库
+    /// Open and connect to database
     await boxer.open();
 
-    /// 或者直接设置已打开的 database 对象
+    /// Or directly set the opened `sqflite database` object
     // db.setDatabase(database);
   }
 }
 
 /// Table Manager
 class BoxTableManager {
-  /// 表名私有，业务方通过 BoxCacheTable.tableName 来访问
+  /// private table names，business can access by BoxCacheTable.tableName
   static const String _kNAME_BIZ_COMMON = 'cache_table_common';
   static const String _kNAME_BIZ_STUDENTS = 'cache_table_student';
 
-  /// 请在 CacheTableHandler 写好对应的 get 方法来给业务通过 CacheTableHandler 来访问
+  /// It's better offer corresponding `get` method in `CacheTableHandler` to access these table instances
   static BoxCacheTable cacheTableCommon = BoxCacheTable(tableName: _kNAME_BIZ_COMMON);
   static BoxCacheTable cacheTableStudent = BoxCacheTable(tableName: _kNAME_BIZ_STUDENTS);
 }

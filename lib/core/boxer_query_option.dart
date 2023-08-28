@@ -93,10 +93,10 @@ class BoxerQueryOption {
   }
 
   static bool ensureLegality({required List<String> columns, required List<Object?> values}) {
-    assert(columns.length == values.length, '[BoxerQueryOption] ERROR: column & value length not the same!!!');
+    assert(columns.length == values.length, '[BoxerOptions] ERROR: column & value size not the same!');
     List<String> copy = List<String>.from(columns);
     copy.removeWhere((e) => e.trim().isEmpty);
-    assert(columns.length == copy.length, '[BoxerQueryOption] ERROR: trim empty string in column list!!!');
+    assert(columns.length == copy.length, '[BoxerOptions] ERROR: column list contains empty string!');
     bool illegal = columns.length != values.length || columns.length != copy.length;
 
     // remove the empty column and corresponding value

@@ -7,7 +7,7 @@ A Wrapper of package `sqflite`, support easy usage on `query/insert/update/delet
 ## Initialize
 
     ````
-    # Create a boxer instance (generic a single instance)
+    # Create a boxer instance (generally it's a single instance)
     BoxerDatabase boxer = BoxerDatabase(version: version, name: 'database.db');
     
     # Register the tables
@@ -17,10 +17,13 @@ A Wrapper of package `sqflite`, support easy usage on `query/insert/update/delet
     # Open the database establish connection
     await boxer.open();
     ````
+## About try-catch
+
+* The `Boxer` SQL api NOT wrapped by `try-catch` block, caller should handle exceptions by yourself, upload to `Sentry` etc.
+* The `Boxer` catch some FATAL error, caller can handle these error log using properties `logger` & `onFatalError` of `BoxerLogger`.
 
 ## How to use
 
-* Look out API of the three class `BoxerDatabase` and `BoxerTableBase` & its subclass `BoxerTableTranslator`
 * Run `example/lib/main.dart` on mobile device or PC for more example usage.
 
 ## Features and bugs

@@ -51,12 +51,8 @@ class BoxerDatabaseUtil {
 
   /// Reset auto increment ID. It may not working before u clear your table.
   static Future<void> resetAutoIdRaw(DatabaseExecutor db, {String? tableName}) async {
-    try {
-      String sql = "UPDATE sqlite_sequence SET seq = 0 ${tableName != null ? " WHERE name = '$tableName'" : ""}";
-      await db.execute(sql);
-    } catch (e, s) {
-      BoxerLogger.e(null, 'Reset auto increment ID error: $e, $s');
-    }
+    String sql = "UPDATE sqlite_sequence SET seq = 0 ${tableName != null ? " WHERE name = '$tableName'" : ""}";
+    await db.execute(sql);
   }
 
   /// Iterate all the tables
@@ -87,7 +83,7 @@ class BoxerDatabaseUtil {
   }
 
   /// Get table (except sqlite_master) column names
-  static Future<List<String>> getTableColumnNamesRaw(DatabaseExecutor db, String tableName) async {
+  static Future<List<String>> getColumnNamesRaw(DatabaseExecutor db, String tableName) async {
     List<String> result = [];
     await iterateAllTablesRaw(db, (name, columns) {
       if (name == tableName) {

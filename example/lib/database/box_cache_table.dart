@@ -35,7 +35,7 @@ class BoxCacheTable extends BoxerTableTranslator {
     queryAsObjectTranslator = (Map<String, Object?> element) {
       Object? value = element[kCOLUMN_ITEM_VALUE];
 
-      /// TODO ... 解密 ...
+      /// TODO ... Decryption ...
       return value;
     };
 
@@ -58,7 +58,7 @@ class BoxCacheTable extends BoxerTableTranslator {
       }
       value ??= item.toString();
 
-      /// TODO ... 加密 ...
+      /// TODO ... Encryption ...
       return {kCOLUMN_ITEM_VALUE: value};
     };
   }

@@ -5,7 +5,8 @@ import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 class BoxerDatabase {
   BoxerDatabase({required this.version, this.path, this.name});
 
-  /// Database version. IMPORTANT!!! Changing it will affect the database opening phase's callback functions
+  /// Database version
+  /// IMPORTANT!!! Changing it will affect the database opening phase's callback functions
   final int version;
 
   /// Database file's path
@@ -29,7 +30,8 @@ class BoxerDatabase {
     });
   }
 
-  /// Create and Open Database instance. set [_database] and [openingCompleter] to null if u want to re-open database
+  /// Create and Open Database instance
+  /// Set [_database] and [openingCompleter] to null if u want to re-open database
   Completer<Database?>? openingCompleter;
 
   FutureOr<Database?> open() async {
@@ -184,6 +186,5 @@ class BoxerDatabase {
   }
 
   /// Get table (except sqlite_master) column names
-  Future<List<String>> getTableColumnNames(String tableName) =>
-      BoxerDatabaseUtil.getTableColumnNamesRaw(database, tableName);
+  Future<List<String>> getColumnNames(String tableName) => BoxerDatabaseUtil.getColumnNamesRaw(database, tableName);
 }
