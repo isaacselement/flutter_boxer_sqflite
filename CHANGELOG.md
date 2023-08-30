@@ -1,3 +1,7 @@
+# 1.0.7
+
+* Supply getter `isEnableCache` in `BoxerLoader`
+
 # 1.0.6
 
 * Rename `BoxerLoader` api: `updateCache` to `howToUpdateCache`,  `updateView` to `howToUpdateView`

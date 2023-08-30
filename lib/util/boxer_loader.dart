@@ -6,7 +6,9 @@ class BoxerLoader<T> {
   static const String TAG = 'BoxerLoader';
 
   /// Whether to enable the cache feature
-  bool isEnableCache = true;
+  bool enableCache = true;
+
+  bool get isEnableCache => enableCache;
 
   void Function(T value) howToUpdateCache;
   void Function(T value, bool isFromCache) howToUpdateView;
