@@ -1,3 +1,7 @@
+# 1.0.6
+
+* Rename `BoxerLoader` api: `updateCache` to `howToUpdateCache`,  `updateView` to `howToUpdateView`
+
 # 1.0.5
 
 * Update README.md

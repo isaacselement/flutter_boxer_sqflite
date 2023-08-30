@@ -8,19 +8,19 @@ class BoxerLoader<T> {
   /// Whether to enable the cache feature
   bool isEnableCache = true;
 
-  void Function(T value) updateCache;
-  void Function(T value, bool isFromCache) updateView;
+  void Function(T value) howToUpdateCache;
+  void Function(T value, bool isFromCache) howToUpdateView;
 
   /// Instance Error callback for [requestFuture] and [cacheFuture]
   BoxerLoadErrorCallback? onLoadError;
 
-  BoxerLoader({required this.updateCache, required this.updateView, this.onLoadError});
+  BoxerLoader({required this.howToUpdateCache, required this.howToUpdateView, this.onLoadError});
 
   /// Unless [loadRequestFuture] is completed before [loadCacheFuture],
-  /// both [loadRequestFuture] and [loadCacheFuture] will call [updateView] to update the view
+  /// both [loadRequestFuture] and [loadCacheFuture] will call [howToUpdateView] to update the view
   ///
   /// [loadCacheFuture] itself is a cache so there is no need to update the cache
-  /// [loadRequestFuture] will call [updateCache] to update the cache after completion
+  /// [loadRequestFuture] will call [howToUpdateCache] to update the cache after completion
   ///
   /// [loadCacheFuture] and [loadRequestFuture] can explicitly pass null value
   /// so as to ensure that the caller knows that he has explicitly send a null value
@@ -31,7 +31,7 @@ class BoxerLoader<T> {
   Future<T?> getData({
     required Future<T>? loadCacheFuture,
     required Future<T>? loadRequestFuture,
-    BoxerLoadErrorCallback? onError,
+    BoxerLoadErrorCallback? onLoadError,
   }) {
     Future<T>? f1;
     Future<T>? f2;
@@ -47,7 +47,7 @@ class BoxerLoader<T> {
         /// Update UI And Cache
         update(value, isValueFromCache: false, isOnlyUpdateView: false);
       }).onError((e, s) {
-        (onError ?? onLoadError)?.call(e, s, BoxerLoadType.REQUEST);
+        (onLoadError ?? this.onLoadError)?.call(e, s, BoxerLoadType.REQUEST);
       });
 
       if (isEnableCache == false) return;
@@ -68,7 +68,7 @@ class BoxerLoader<T> {
           BoxerLogger.d(null, 'Request data already response successfully, no need to call error callback');
           return;
         }
-        (onError ?? onLoadError)?.call(e, s, BoxerLoadType.CACHE);
+        (onLoadError ?? this.onLoadError)?.call(e, s, BoxerLoadType.CACHE);
       });
     }();
 
@@ -99,14 +99,14 @@ class BoxerLoader<T> {
 
   void update(T value, {bool isValueFromCache = false, bool isOnlyUpdateView = false}) {
     /// Update to UI
-    updateView(value, isValueFromCache);
+    howToUpdateView(value, isValueFromCache);
 
     /// Need to update cache or not?
     if (isOnlyUpdateView == true) return;
     if (isEnableCache == false) return;
 
     /// Update to cache
-    updateCache(value);
+    howToUpdateCache(value);
   }
 }
 

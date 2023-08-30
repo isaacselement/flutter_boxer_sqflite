@@ -192,10 +192,10 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
     await BoxDatabaseManager.init();
 
     BoxerLoader<List<dynamic>> handler = BoxerLoader(
-      updateCache: (value) {
+      howToUpdateCache: (value) {
         updateToCache(value);
       },
-      updateView: (value, bool isFromCache) {
+      howToUpdateView: (value, bool isFromCache) {
         Map<String, dynamic>? map = datasource.first;
         map[TableView.keyTblRowCount] = value.length;
         map[TableView.keyTblRowResults] = value;
