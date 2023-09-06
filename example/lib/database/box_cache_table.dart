@@ -127,7 +127,7 @@ class BoxCacheTable extends BoxerTableTranslator {
   /// Subclass additional methods
 
   Future<String?> getOne({int? id, String? type, String? itemId, bool last = false}) async {
-    List<String> list = await mQueryAsStrings(options: getOptions(id: id, type: type, itemId: itemId));
+    List<String?> list = await mQueryAsStrings(options: getOptions(id: id, type: type, itemId: itemId));
     return last ? list.lastSafe : list.firstSafe;
   }
 

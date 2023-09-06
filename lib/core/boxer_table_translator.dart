@@ -94,9 +94,11 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
 
   /** Query **/
 
+  ///
   /// [mQueryAsModels] based on a Json-Object Map
   ///
   /// parameter [fromJson] is the function that tell to callee how to translate result to model T object
+  ///
   Future<List<T>> mQueryAsModels<T>({ModelTranslatorFromJson<T>? fromJson, BoxerQueryOption? options}) async {
     ModelTranslatorFromJson<T>? translate = BoxerTableTranslator.getModelTranslatorFrom(fromJson);
     if (translate == null) return [];
@@ -112,25 +114,45 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
     return (await mQueryAsStrings(options: options)).map<T>((string) {
       T? result;
       try {
-        result = string.isNotEmpty ? json.decode(string) as T : null;
+        result = string != null && string.isNotEmpty ? (json.decode(string) as T) : null;
       } catch (e, s) {
         BoxerLogger.e(null, '❗️❗️❗️ERROR: query as json decode error: $e, $s');
         // rethrow;
       }
-      return result ?? (T.toString() == [].runtimeType.toString() ? [] : {}) as T;
+      if (result != null) {
+        return result;
+      }
+      String type = T.toString();
+      bool isNullable = type.endsWith('?');
+      if (isNullable) {
+        return null as T;
+      }
+      bool isList = type.contains('List');
+      return (isList ? [] : {}) as T;
+    }).toList();
+  }
+
+  /// translate it to num (double or int)
+  Future<List<num?>> mQueryAsNum({BoxerQueryOption? options}) async {
+    return (await mQueryAsObjects(options: options)).map<num?>((e) {
+      return num.tryParse(e?.toString() ?? '');
     }).toList();
   }
 
   /// translate it to String
-  Future<List<String>> mQueryAsStrings({BoxerQueryOption? options}) async {
-    return (await mQueryAsObjects(options: options)).map<String>((e) => e?.toString() ?? '').toList();
+  Future<List<String?>> mQueryAsStrings({BoxerQueryOption? options}) async {
+    return (await mQueryAsObjects(options: options)).map<String?>((e) {
+      return e?.toString();
+    }).toList();
   }
 
   /// Query and cast the result to specified object type, or filter the result using [queryAsObjectTranslator]
   Object? Function(Map<String, Object?> element)? queryAsObjectTranslator;
 
-  Future<List<Object?>> mQueryAsObjects(
-      {Object? Function(Map<String, Object?> item)? translator, BoxerQueryOption? options}) async {
+  Future<List<Object?>> mQueryAsObjects({
+    Object? Function(Map<String, Object?> item)? translator,
+    BoxerQueryOption? options,
+  }) async {
     return await mQueryTo<Object?>(
       options: options,
       translator: (Map<String, Object?> element) {

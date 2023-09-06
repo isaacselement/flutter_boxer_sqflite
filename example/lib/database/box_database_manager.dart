@@ -4,7 +4,7 @@ import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
 /// DB Manager
 class BoxDatabaseManager {
-  /// When the table struct of the database is updated, update this version number
+  /// When create a new table/a table struct is updated, update this version number
   static int version = 1;
 
   static bool isInited = false;

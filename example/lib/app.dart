@@ -2,6 +2,7 @@ import 'package:example/common/widget/gradient_tab_bar.dart';
 import 'package:example/page/page_all_tables.dart';
 import 'package:example/page/page_api_cache.dart';
 import 'package:example/page/page_sqlite_master.dart';
+import 'package:example/page/page_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
@@ -18,9 +19,9 @@ class AppState extends State<App> with SingleTickerProviderStateMixin {
 
   TabController? tabController;
 
-  List<String> get tabTitles => ['all raw tables', 'table cache api', 'sqlite_master'];
+  List<String> get tabTitles => ['all raw tables', 'table cache api', 'sqlite_master', 'utils tests'];
 
-  List<Widget> get tabPages => [PageAllTables(), PageApiCache(), PageSqliteMaster()];
+  List<Widget> get tabPages => [PageAllTables(), PageApiCache(), PageSqliteMaster(), PageUtils()];
 
   @override
   void initState() {

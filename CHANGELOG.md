@@ -1,3 +1,7 @@
+# 1.0.8
+
+* Offer `mQueryAsNum` in `BoxerTableTranslator`
+
 # 1.0.7
 
 * Supply getter `isEnableCache` in `BoxerLoader`
@@ -5,10 +9,6 @@
 # 1.0.6
 
 * Rename `BoxerLoader` api: `updateCache` to `howToUpdateCache`,  `updateView` to `howToUpdateView`
-
-# 1.0.5
-
-* Update README.md
 
 # 1.0.4
 
