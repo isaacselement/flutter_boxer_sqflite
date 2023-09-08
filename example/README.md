@@ -41,3 +41,11 @@
     Lost connection to device.
 
     ```
+
+### Ubuntu requirement
+    sudo apt install build-essential llvm clang
+    sudo apt install -y  libsqlite3-0 libsqlite3-dev 
+    sudo apt-get install libgtk-3-dev libsecret-1-dev libsecret-1-0 libsecret-tools libjsoncpp-dev
+
+    flutter doctor
+    flutter clean

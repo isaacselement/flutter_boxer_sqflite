@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
@@ -45,6 +46,12 @@ class BoxerDatabase {
     Database? db;
     try {
       name ??= 'database.db';
+
+      /// For windows & linux
+      if (Platform.isWindows || Platform.isLinux) {
+        path ??= "~/Downloads/";
+      }
+
       path ??= '${await getDatabasesPath()}/$name';
       if (path?.endsWith('/') ?? false) {
         path = '$path$name';
@@ -54,6 +61,7 @@ class BoxerDatabase {
 
       /// will sync call onConfigure -> onCreate -> onUpgrade -> onDowngrade -> onOpen if needed
       db = await openDB(path: dbPath, version: version);
+      setDatabase(db);
       openingCompleter?.complete(db);
       BoxerLogger.i(null, '[BoxerDatabase] - open database done');
     } catch (e, s) {
@@ -74,15 +82,25 @@ class BoxerDatabase {
   }
 
   Future<Database> openDB({required String path, int? version}) async {
-    return await openDatabase(
-      path,
+    OpenDatabaseOptions options = OpenDatabaseOptions(
       version: version,
       onConfigure: _onConfigureDB,
       onCreate: _onCreateDB,
       onUpgrade: _onUpgradeDB,
       onDowngrade: _onDowngradeDB,
       onOpen: _onOpenDB,
+      readOnly: false,
+      singleInstance: true,
     );
+
+    /// For windows & linux
+    if (Platform.isWindows || Platform.isLinux) {
+      // sqfliteFfiInit();
+      // return await databaseFactoryFfi.openDatabase(path, options: options);
+    }
+
+    /// For iOS & Android & MacOS
+    return await databaseFactory.openDatabase(path, options: options);
   }
 
   /// Close database, release connection resource

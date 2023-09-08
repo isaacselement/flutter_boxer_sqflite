@@ -188,8 +188,10 @@ class TableViewState extends State<TableView> {
               Map<String, Object?> map = widget.rowsResults[index];
               List<String> keys = map.keys.toList();
               List<Widget> rowChildren = keys
-                  .map((name) => getOneRowElement(
-                      name: name, value: map[name]?.toString() ?? 'NULL', width: everyColumnWidth(name)))
+                  .map(
+                    (name) => getOneRowElement(
+                        name: name, value: map[name]?.toString() ?? 'NULL', width: everyColumnWidth(name)),
+                  )
                   .toList();
               return Listener(
                 onPointerDown: (e) => selectIndex.value = index,

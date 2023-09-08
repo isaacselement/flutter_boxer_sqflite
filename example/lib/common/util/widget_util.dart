@@ -124,6 +124,9 @@ class WidgetUtil {
 
   /// Dialog Widgets
 
+  static Map<String, dynamic> actionSheetItem(IconData i, String s, Function(Map m) f) =>
+      {'icon': i, 'text': s, 'event': f};
+
   static void showActionSheet({required List<Map> sheet, double? itemWidth}) {
     DialogWrapper.showBottom(ActionSheetButtons(
       items: sheet,
@@ -131,12 +134,12 @@ class WidgetUtil {
       itemSpacing: 10,
       itemInnerBuilder: (i, e) {
         Map map = sheet[i];
-        TextStyle style = const TextStyle(color: Color(0xFF1C1D21), fontSize: 16);
+        TextStyle style = const TextStyle(overflow: TextOverflow.ellipsis);
         return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(width: 50),
             Icon(map['icon'] as IconData),
-            const SizedBox(width: 20),
+            const SizedBox(width: 10),
             Text(map['text'], style: style),
           ],
         );

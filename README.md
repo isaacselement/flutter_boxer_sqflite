@@ -22,6 +22,10 @@ A Wrapper of package `sqflite`, support easy usage on `query/insert/update/delet
 * The `Boxer` SQL api NOT wrapped by `try-catch` block, caller should handle exceptions by yourself, upload to `Sentry` etc.
 * The `Boxer` catch some FATAL error, caller can handle these error log using properties `logger` & `onFatalError` of `BoxerLogger`.
 
+## For windows & linux
+
+    Just uncomment the codes under `/// For windows & linux` comments, there are 3 occurrences.
+
 ## How to use
 
 * Run `example/lib/main.dart` on mobile device or PC for more example usage.

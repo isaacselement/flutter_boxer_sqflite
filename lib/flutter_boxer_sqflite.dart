@@ -9,3 +9,6 @@ export 'package:flutter_boxer_sqflite/util/boxer_extensions.dart';
 export 'package:flutter_boxer_sqflite/util/boxer_loader.dart';
 export 'package:flutter_boxer_sqflite/util/boxer_logger.dart';
 export 'package:sqflite/sqflite.dart';
+
+/// For windows & linux
+// export 'package:sqflite_common_ffi/sqflite_ffi.dart';

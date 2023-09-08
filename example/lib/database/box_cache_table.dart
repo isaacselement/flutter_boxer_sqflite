@@ -15,7 +15,7 @@ class BoxCacheTable extends BoxerTableTranslator {
   static const String kCOLUMN_USER_ID = 'USER_ID';
   static const String kCOLUMN_ROLE_ID = 'ROLE_ID';
 
-  static int currentUserId = 0; // empCode now, previous is uid
+  static int currentUserId = 0;
 
   static int currentRoleId = 0;
 
@@ -32,16 +32,16 @@ class BoxCacheTable extends BoxerTableTranslator {
       return false;
     };
 
-    queryAsObjectTranslator = (Map<String, Object?> element) {
+    queryTranslator = (Map<String, Object?> element) {
       Object? value = element[kCOLUMN_ITEM_VALUE];
 
       /// TODO ... Decryption ...
       return value;
     };
 
-    insertionTranslator = (dynamic item) {
+    writeTranslator = (dynamic item) {
       Object? value;
-      if (item is num || item is String) {
+      if (/* item is bool || */ item is num || item is String) {
         /// primitive type
         value = item;
       } else if (item is Map || item is List) {
@@ -56,14 +56,12 @@ class BoxCacheTable extends BoxerTableTranslator {
           /// ignore this error ...
         }
       }
-      value ??= item.toString();
+      value ??= item?.toString();
 
       /// TODO ... Encryption ...
       return {kCOLUMN_ITEM_VALUE: value};
     };
   }
-
-  bool isRoleUnconcerned = false;
 
   late String _tableName;
 
@@ -110,63 +108,165 @@ class BoxCacheTable extends BoxerTableTranslator {
     optionsWithUserRoleId(options);
   }
 
+  bool isRoleUnconcerned = false;
+
   BoxerQueryOption optionsWithUserRoleId(BoxerQueryOption options) {
-    List<String> _where = ['$kCOLUMN_USER_ID = ?', '$kCOLUMN_ROLE_ID = ? '];
-    List<Object?> _whereArgs = [currentUserId, currentRoleId];
-    if (isRoleUnconcerned == true) {
-      _where.removeLast();
-      _whereArgs.removeLast();
+    BoxerQueryOption op = BoxerQueryOption.e(column: kCOLUMN_USER_ID, value: currentUserId);
+    if (isRoleUnconcerned == false) {
+      op = op.merge(BoxerQueryOption.e(column: kCOLUMN_ROLE_ID, value: currentRoleId)).group();
     }
-    if (options.where != null) _where.add(options.where!);
-    if (options.whereArgs != null) _whereArgs.addAll(options.whereArgs!);
-    options.where = _where.join(" AND ");
-    options.whereArgs = _whereArgs;
+    op = op.merge(options);
+    options.set(op);
     return options;
   }
 
-  /// Subclass additional methods
+  /// Override query methods
 
-  Future<String?> getOne({int? id, String? type, String? itemId, bool last = false}) async {
-    List<String?> list = await mQueryAsStrings(options: getOptions(id: id, type: type, itemId: itemId));
-    return last ? list.lastSafe : list.firstSafe;
-  }
-
-  Future<Map?> getOneAsMap({int? id, String? type, String? itemId, bool last = false}) async {
+  @override
+  Future<T?> one<T>({
+    BoxerQueryOption? options,
+    ModelTranslatorFromJson<T>? fromJson,
+    bool isReThrow = false,
+  }) async {
     try {
-      List<Map> list = await mQueryAsMap(options: getOptions(id: id, type: type, itemId: itemId));
-      return last ? list.lastSafe : list.firstSafe;
+      return await super.one<T>(options: options, fromJson: fromJson);
     } catch (e, s) {
-      BoxerLogger.e(TAG, '$tableName getOneAsMap error: $e, $s');
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [one] error: $e, $s');
     }
     return null;
   }
 
-  Future<int> remove({int? id, String? type, String? itemId}) async {
-    return await delete(options: getOptions(id: id, type: type, itemId: itemId));
+  @override
+  Future<List<T?>> list<T>({
+    BoxerQueryOption? options,
+    ModelTranslatorFromJson<T>? fromJson,
+    bool isReThrow = false,
+  }) async {
+    try {
+      return await super.list<T>(options: options, fromJson: fromJson);
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [list] error: $e, $s');
+    }
+    return [];
   }
 
-  Future<List<Object?>?> eliminatedAdd({String? type, String? itemId, dynamic value}) async {
-    // 清除相同 type 及 itemId 的，再添加，保证只有一个
-    return await doBatch((clone) {
-      clone as BoxCacheTable;
-      clone.remove(type: type, itemId: itemId);
-      clone.addOne(type: type, itemId: itemId, value: value);
-    });
+  /// Subclass additional methods.  [id, type, itemId] relevant
+
+  Future<int> add({
+    String? type,
+    String? itemId,
+    dynamic value,
+    bool isReThrow = false,
+  }) async {
+    try {
+      return await mInsert(value, translator: (e) {
+        return {
+          BoxCacheTable.kCOLUMN_ITEM_TYPE: type,
+          BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
+        };
+      });
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [add] error: $e, $s');
+    }
+    return -1;
   }
 
-  Future<int> addOne({String? type, String? itemId, dynamic value}) async {
-    Map<String, Object?> values = insertionTranslator!(value);
-    values.addAll({
-      BoxCacheTable.kCOLUMN_ITEM_TYPE: type,
-      BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
-    });
-    return await insert(values);
+  Future<int> remove({
+    int? id,
+    String? type,
+    String? itemId,
+    bool isReThrow = false,
+  }) async {
+    try {
+      return await delete(options: getOptions(id: id, type: type, itemId: itemId));
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [remove] error: $e, $s');
+    }
+    return 0;
   }
 
-  Future<int> updateOne({String? type, String? itemId, dynamic value}) async {
-    Map<String, Object?> values = insertionTranslator!(value);
-    return await update(values, options: getOptions(type: type, itemId: itemId));
+  Future<T?> get<T>({
+    int? id,
+    String? type,
+    String? itemId,
+    ModelTranslatorFromJson<T>? fromJson,
+    bool isReThrow = false,
+  }) async {
+    try {
+      return await one<T>(options: getOptions(id: id, type: type, itemId: itemId), fromJson: fromJson);
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [get] error: $e, $s');
+    }
+    return null;
   }
+
+  /// [set] is using BATCH mode, [remove] the same type and itemId, then [add] the new one
+  Future<void> set({
+    String? type,
+    String? itemId,
+    dynamic value,
+    bool isReThrow = false,
+  }) async {
+    try {
+      List<Object?>? result = await doBatch((clone) {
+        clone as BoxCacheTable;
+        clone.remove(type: type, itemId: itemId);
+        clone.add(type: type, itemId: itemId, value: value);
+      });
+
+      /// TODO ... check out the result ~~~
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [set] error: $e, $s');
+    }
+  }
+
+  /// unlike [set] method, [modify] just update the [value] for specified [id] / [type] / [itemId]
+  Future<int> modify({
+    int? id,
+    String? type,
+    String? itemId,
+    dynamic value,
+    bool isReThrow = false,
+  }) async {
+    try {
+      return await mUpdate(value, options: getOptions(id: id, type: type, itemId: itemId));
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [change] error: $e, $s');
+    }
+    return 0;
+  }
+
+  /// [eliminate] is for convenient delete some older records if the number of records exceeds the limit
+  Future<int?> eliminate({
+    required BoxerQueryOption options,
+    required int limit,
+    bool isReThrow = false,
+  }) async {
+    try {
+      int size = await super.count(options) ?? 0;
+      if (size > limit) {
+        int minID = (await minId()) ?? 0;
+        int maxID = (await maxId()) ?? 0;
+        int lessThan = (maxID - (maxID - minID) ~/ 2) + 1;
+        BoxerQueryOption op = BoxerQueryOption.l(column: BoxCacheTable.kCOLUMN_ID, value: lessThan);
+        options = BoxerQueryOption.merge([options, op]);
+      }
+      return await clear(options);
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [eliminate] error: $e, $s');
+    }
+    return 0;
+  }
+
+  /// Utilities Methods
 
   BoxerQueryOption getOptions({int? id, String? type, String? itemId}) {
     void addIfNotNull(List list, dynamic check, dynamic value) => check != null ? list.add(value) : null;

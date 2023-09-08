@@ -7,7 +7,9 @@ import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 class BoxCacheHandler {
   static BoxCacheTable get commonTable => BoxTableManager.cacheTableCommon;
 
-  static BoxCacheTable get studentTable => BoxTableManager.cacheTableStudent;
+  static BoxCacheTable get settingsTable => BoxTableManager.cacheTableSettings;
+
+  static BoxCacheTable get studentsTable => BoxTableManager.cacheTableStudents;
 }
 
 class BoxCommonTableHandler {
@@ -30,7 +32,7 @@ class BoxCommonTableHandler {
       type = type ?? '';
       BoxerQueryOption op = BoxerQueryOption.e(column: BoxCacheTable.kCOLUMN_ITEM_TYPE, value: type);
       await table.resetWithItems(list, option: op, translator: (dynamic e) {
-        Map<String, Object?> values = table.insertionTranslator!(e);
+        Map<String, Object?> values = table.writeTranslator!(e);
         values[BoxCacheTable.kCOLUMN_ITEM_TYPE] = type;
         values[BoxCacheTable.kCOLUMN_ITEM_ID] = e is Map ? e['uuid']?.toString() ?? '' : '';
         return values;

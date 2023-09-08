@@ -12,6 +12,25 @@ class BoxerQueryOption {
 
   BoxerQueryOption();
 
+  void set(BoxerQueryOption? option) {
+    distinct = option?.distinct;
+    columns = option?.columns;
+    where = option?.where;
+    whereArgs = option?.whereArgs;
+    groupBy = option?.groupBy;
+    having = option?.having;
+    orderBy = option?.orderBy;
+    limit = option?.limit;
+    offset = option?.offset;
+  }
+
+  BoxerQueryOption group() {
+    if (where != null) {
+      where = ' ( $where ) ';
+    }
+    return this;
+  }
+
   BoxerQueryOption merge(BoxerQueryOption? option) {
     if (option == null) return this;
     return BoxerQueryOption.merge([this, option]);
@@ -22,25 +41,52 @@ class BoxerQueryOption {
     return BoxerQueryOption.eq(columns: [column], values: [value]);
   }
 
-  factory BoxerQueryOption.eq({required List<String> columns, required List<Object?> values}) {
+  factory BoxerQueryOption.eq({
+    required List<String> columns,
+    required List<Object?> values,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
     ensureLegality(columns: columns, values: values);
-    String _where = columns.map((e) => '$e = ?').toList().join(' AND ');
+    String _where = columns.map((e) => '$e = ?').toList().join(mBoxerOptionTypeToString(join));
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
+  }
+
+  factory BoxerQueryOption.eM({
+    required Map<String, dynamic> map,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
+    List<String> columns = map.keys.toList();
+    List<Object?> values = map.values.toList();
+    return BoxerQueryOption.eq(columns: columns, values: values, join: join);
   }
 
   /// not equals
-  factory BoxerQueryOption.ne({required String column, required Object? value}) {
-    return BoxerQueryOption.neq(columns: [column], values: [value]);
+  factory BoxerQueryOption.n({required String column, required Object? value}) {
+    return BoxerQueryOption.ne(columns: [column], values: [value]);
   }
 
-  factory BoxerQueryOption.neq({required List<String> columns, required List<Object?> values}) {
+  factory BoxerQueryOption.ne({
+    required List<String> columns,
+    required List<Object?> values,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
     ensureLegality(columns: columns, values: values);
-    String _where = columns.map((e) => '$e != ?').toList().join(' AND '); // != or <> both ok
+    // != , <> both ok
+    String _where = columns.map((e) => '$e != ?').toList().join(mBoxerOptionTypeToString(join));
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
+  }
+
+  factory BoxerQueryOption.nM({
+    required Map<String, dynamic> map,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
+    List<String> columns = map.keys.toList();
+    List<Object?> values = map.values.toList();
+    return BoxerQueryOption.ne(columns: columns, values: values, join: join);
   }
 
   /// less than
@@ -48,12 +94,25 @@ class BoxerQueryOption {
     return BoxerQueryOption.lt(columns: [column], values: [value]);
   }
 
-  factory BoxerQueryOption.lt({required List<String> columns, required List<Object?> values}) {
+  factory BoxerQueryOption.lt({
+    required List<String> columns,
+    required List<Object?> values,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
     ensureLegality(columns: columns, values: values);
-    String _where = columns.map((e) => '$e < ?').toList().join(' AND ');
+    String _where = columns.map((e) => '$e < ?').toList().join(mBoxerOptionTypeToString(join));
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
+  }
+
+  factory BoxerQueryOption.lM({
+    required Map<String, dynamic> map,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
+    List<String> columns = map.keys.toList();
+    List<Object?> values = map.values.toList();
+    return BoxerQueryOption.lt(columns: columns, values: values, join: join);
   }
 
   /// greater than
@@ -61,12 +120,25 @@ class BoxerQueryOption {
     return BoxerQueryOption.gt(columns: [column], values: [value]);
   }
 
-  factory BoxerQueryOption.gt({required List<String> columns, required List<Object?> values}) {
+  factory BoxerQueryOption.gt({
+    required List<String> columns,
+    required List<Object?> values,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
     ensureLegality(columns: columns, values: values);
-    String _where = columns.map((e) => '$e > ?').toList().join(' AND ');
+    String _where = columns.map((e) => '$e > ?').toList().join(mBoxerOptionTypeToString(join));
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
+  }
+
+  factory BoxerQueryOption.gM({
+    required Map<String, dynamic> map,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
+    List<String> columns = map.keys.toList();
+    List<Object?> values = map.values.toList();
+    return BoxerQueryOption.gt(columns: columns, values: values, join: join);
   }
 
   /// is null
@@ -74,23 +146,49 @@ class BoxerQueryOption {
     return BoxerQueryOption.isNulls(columns: [column]);
   }
 
-  factory BoxerQueryOption.isNulls({required List<String> columns}) {
-    String _where = columns.map((e) => '$e is NULL').toList().join(' AND ');
+  factory BoxerQueryOption.isNulls({
+    required List<String> columns,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
+    String _where = columns.map((e) => '$e IS NULL').toList().join(mBoxerOptionTypeToString(join));
     return BoxerQueryOption()..where = _where;
   }
 
+  /// like
+  factory BoxerQueryOption.like({required String column, required Object? value}) {
+    return BoxerQueryOption.likes(columns: [column], values: [value]);
+  }
+
+  factory BoxerQueryOption.likes({
+    required List<String> columns,
+    required List<Object?> values,
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
+    ensureLegality(columns: columns, values: values);
+    String _where = columns.map((e) => '$e LIKE ?').toList().join(mBoxerOptionTypeToString(join));
+    return BoxerQueryOption()
+      ..where = _where
+      ..whereArgs = values;
+  }
+
   /// merge different where clause, only support where clause now
-  factory BoxerQueryOption.merge(List<BoxerQueryOption> options) {
+  factory BoxerQueryOption.merge(
+    List<BoxerQueryOption> options, {
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
     List<String> wheres = [];
     List<Object?> values = [];
     options.forEach((e) {
       if (e.where != null) wheres.add(e.where!);
       if (e.whereArgs != null) values.addAll(e.whereArgs!);
     });
+    String _where = wheres.join(mBoxerOptionTypeToString(join));
     return BoxerQueryOption()
-      ..where = wheres.join(' AND ')
+      ..where = _where
       ..whereArgs = values;
   }
+
+  /// Utils
 
   static bool ensureLegality({required List<String> columns, required List<Object?> values}) {
     assert(columns.length == values.length, '[BoxerOptions] ERROR: column & value size not the same!');
@@ -107,7 +205,10 @@ class BoxerQueryOption {
         values.remove(i);
       }
     }
-
     return illegal;
   }
+
+  static String mBoxerOptionTypeToString(BoxerOptionType type) => type == BoxerOptionType.AND ? ' AND ' : ' OR ';
 }
+
+enum BoxerOptionType { AND, OR }

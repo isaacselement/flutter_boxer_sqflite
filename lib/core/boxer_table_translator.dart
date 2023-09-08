@@ -1,10 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 
+import 'package:flutter_boxer_sqflite/core/features/boxer_delete_functions.dart';
+import 'package:flutter_boxer_sqflite/core/features/boxer_insert_functions.dart';
+import 'package:flutter_boxer_sqflite/core/features/boxer_query_functions.dart';
+import 'package:flutter_boxer_sqflite/core/features/boxer_update_functions.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:synchronized_call/synchronized_call.dart';
 
-abstract class BoxerTableTranslator extends BoxerTableBase {
+abstract class BoxerTableInterceptor extends BoxerTableBase {
   void onQuery(BoxerQueryOption options);
 
   void onDelete(BoxerQueryOption options);
@@ -92,152 +95,36 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
     return await super.delete(where: options.where, whereArgs: options.whereArgs);
   }
 
-  /** Query **/
+  /// Low level translator for query item, called in [mQuery] method
+  QueryTranslator? queryTranslator;
 
-  ///
-  /// [mQueryAsModels] based on a Json-Object Map
-  ///
-  /// parameter [fromJson] is the function that tell to callee how to translate result to model T object
-  ///
-  Future<List<T>> mQueryAsModels<T>({ModelTranslatorFromJson<T>? fromJson, BoxerQueryOption? options}) async {
-    ModelTranslatorFromJson<T>? translate = BoxerTableTranslator.getModelTranslatorFrom(fromJson);
-    if (translate == null) return [];
-    return (await mQueryAsMap(options: options)).map((e) => translate(e)).toList();
-  }
+  /// Low level translator for inserting/updating item, called in [mInsert] & [mUpdate] method
+  WriteTranslator? writeTranslator;
 
-  /// translate it to Json-Object (Map or List)
-  Future<List<Map>> mQueryAsMap({BoxerQueryOption? options}) => mQueryAsJson<Map>(options: options);
+  Map<String, Object?>? translate2TableMap<T>(T? item, {WriteTranslator<T>? translator}) {
+    if (item == null) return null;
 
-  Future<List<List>> mQueryAsList({BoxerQueryOption? options}) => mQueryAsJson<List>(options: options);
-
-  Future<List<T>> mQueryAsJson<T>({BoxerQueryOption? options}) async {
-    return (await mQueryAsStrings(options: options)).map<T>((string) {
-      T? result;
-      try {
-        result = string != null && string.isNotEmpty ? (json.decode(string) as T) : null;
-      } catch (e, s) {
-        BoxerLogger.e(null, '❗️❗️❗️ERROR: query as json decode error: $e, $s');
-        // rethrow;
-      }
-      if (result != null) {
-        return result;
-      }
-      String type = T.toString();
-      bool isNullable = type.endsWith('?');
-      if (isNullable) {
-        return null as T;
-      }
-      bool isList = type.contains('List');
-      return (isList ? [] : {}) as T;
-    }).toList();
-  }
-
-  /// translate it to num (double or int)
-  Future<List<num?>> mQueryAsNum({BoxerQueryOption? options}) async {
-    return (await mQueryAsObjects(options: options)).map<num?>((e) {
-      return num.tryParse(e?.toString() ?? '');
-    }).toList();
-  }
-
-  /// translate it to String
-  Future<List<String?>> mQueryAsStrings({BoxerQueryOption? options}) async {
-    return (await mQueryAsObjects(options: options)).map<String?>((e) {
-      return e?.toString();
-    }).toList();
-  }
-
-  /// Query and cast the result to specified object type, or filter the result using [queryAsObjectTranslator]
-  Object? Function(Map<String, Object?> element)? queryAsObjectTranslator;
-
-  Future<List<Object?>> mQueryAsObjects({
-    Object? Function(Map<String, Object?> item)? translator,
-    BoxerQueryOption? options,
-  }) async {
-    return await mQueryTo<Object?>(
-      options: options,
-      translator: (Map<String, Object?> element) {
-        translator ??= queryAsObjectTranslator;
-        return translator != null ? translator!(element) : element;
-      },
-    );
-  }
-
-  /// Query and translate the values to a specified object models
-  Future<List<T>> mQueryTo<T>(
-      {required T Function(Map<String, Object?> item) translator, BoxerQueryOption? options}) async {
-    List<Map<String, Object?>> values = await query(options: options);
-    List<T> results = values.map((element) => translator(element)).toList();
-    return results;
-  }
-
-  /** Insert **/
-
-  /// handler for caller when reached the maximum capacity or other situation you want to break
-  FutureOr<bool> Function()? insertionsBreakHandler;
-
-  Future<List<int>?> mInserts<T>(List<T> items, {InsertionTranslator<T>? translator}) async {
-    if ((await insertionsBreakHandler?.call()) == true) {
-      BoxerLogger.d(null, 'Insert $tableName bulk items broken, cause the [insertionsBreakHandler] return true!');
-      return null;
+    /// TODO ... call [mInsertModel]/[mUpdateModel] method and not translate to OuterMap will get a crash that record in README.md
+    Map<String, Object?>? outerMap = writeTranslator?.call(item);
+    // override [outerMap] by the [translator] result specifiedOuterMap
+    Map<String, Object?>? specifiedOuterMap = translator?.call(item);
+    if (specifiedOuterMap != null) {
+      outerMap?.addAll(specifiedOuterMap);
     }
-
-    /// Do list iteration to insert
-    List<int> insertedIds = [];
-    for (int i = 0; i < items.length; i++) {
-      int identifier = await mInsert<T>(items[i], translator: translator);
-      if (identifier > 0) {
-        insertedIds.add(identifier);
-      }
+    // item is the result if needed
+    if (outerMap == null && item is Map) {
+      outerMap = item is Map<String, Object?>
+          ? item
+          : Map<String, Object?>.from(item); // outerMap = item.cast<String, Object?>();
     }
-    BoxerLogger.d(null, 'Inserted items ids is: $insertedIds');
-    return insertedIds;
+    return outerMap;
   }
+}
 
-  /// T?, ? is needed
-  Future<int> mInsertModel<T>(T? model, {ModelTranslatorToJson<T>? toJson, InsertionTranslator<T>? translator}) async {
-    ModelTranslatorToJson<T>? translate = BoxerTableTranslator.getModelTranslatorTo(toJson);
-    if (translate == null || model == null) return -1;
-    Map<String, Object?> values = Map<String, Object?>.from(translate(model));
-
-    InsertionTranslator<Map<String, Object?>>? mapTr = (e) => translator?.call(model) ?? {};
-    Map<String, dynamic>? fields = getModelIdentifyFields<T>()?.call(model);
-    if (fields != null && fields.isNotEmpty) {
-      mapTr = (e) => fields..addAll(translator?.call(model) ?? {});
-    }
-    return await mInsert(values, translator: mapTr);
-  }
-
-  Future<int> mInsert<T>(T? item, {InsertionTranslator<T>? translator}) async {
-    Map<String, Object?>? map = toMap(item, translator: translator);
-    assert(map != null, 'Values(${item.runtimeType}) that inserting to table should be a map.');
-    if (map == null) return -1;
-    return await insert(map, conflictAlgorithm: ConflictAlgorithm.replace);
-  }
-
-  /** Update **/
-
-  /// T?, ? is needed
-  Future<int> mUpdateModel<T>(T? model, {ModelTranslatorToJson<T>? toJson, BoxerQueryOption? options}) async {
-    ModelTranslatorToJson<T>? translate = BoxerTableTranslator.getModelTranslatorTo(toJson);
-    if (translate == null || model == null) return -1;
-    Map<String, Object?> values = Map<String, Object?>.from(translate(model));
-
-    Map<String, dynamic>? fields = getModelIdentifyFields<T>()?.call(model);
-    if (fields != null && fields.isNotEmpty) {
-      options = BoxerQueryOption.eq(columns: fields.keys.toList(), values: fields.values.toList()).merge(options);
-    }
-    return await mUpdate(values, options: options);
-  }
-
-  Future<int> mUpdate<T>(T? item, {InsertionTranslator<T>? translator, BoxerQueryOption? options}) async {
-    Map<String, Object?>? map = toMap(item, translator: translator);
-    assert(map != null, 'Values(${item.runtimeType}) that updating to table should be a map.');
-    if (map == null) return -1;
-    return await update(map, options: options, conflictAlgorithm: ConflictAlgorithm.replace);
-  }
-
+abstract class BoxerTableTranslator extends BoxerTableInterceptor
+    with BoxerDeleteFunctions, BoxerInsertFunctions, BoxerQueryFunctions, BoxerUpdateFunctions {
   /**
-   * Wrap Methods
+   * Model Translate Methods
    */
 
   /// [ModelTranslatorFromJson] use for query model, [ModelTranslatorToJson] use for insert & update model
@@ -251,10 +138,15 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
     modelTranslators[T] = [fromJson, toJson, uniqueFields];
   }
 
+  static bool hasModelTranslator<T>() => modelTranslators.containsKey(T);
+
   static ModelTranslatorFromJson<T>? getModelTranslatorFrom<T>(ModelTranslatorFromJson<T>? fromJson) {
     List? list = BoxerTableTranslator.modelTranslators[T];
     fromJson ??= list?.atSafe(0) as ModelTranslatorFromJson<T>?;
     assert(fromJson != null, '❗️[$T] model\'s translator from json is null or not set/registered!');
+    if (fromJson == null) {
+      BoxerLogger.e(null, '❗️[$T] model\'s translator from json is null or not set/registered!');
+    }
     return fromJson;
   }
 
@@ -262,6 +154,9 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
     List? list = BoxerTableTranslator.modelTranslators[T];
     toJson ??= list?.atSafe(1) as ModelTranslatorToJson<T>?;
     assert(toJson != null, '❗️[$T] model\'s translator to json is null or not set/registered!');
+    if (toJson == null) {
+      BoxerLogger.e(null, '❗️[$T] model\'s translator to json is null or not set/registered!');
+    }
     return toJson;
   }
 
@@ -269,31 +164,9 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
     List? list = BoxerTableTranslator.modelTranslators[T];
     ModelIdentifyFields<T>? uniqueFieldGetter = list?.atSafe(2) as ModelIdentifyFields<T>?;
     if (uniqueFieldGetter == null) {
-      BoxerLogger.d(null, 'No ModelIdentifyFields set/registered for $T');
+      BoxerLogger.d(null, '[$T] model\'s id <-> fields mapping is not set!');
     }
     return uniqueFieldGetter;
-  }
-
-  /// Low level translator for inserting/updating item, in [mInsert] & [mUpdate] method
-  InsertionTranslator? insertionTranslator;
-
-  Map<String, Object?>? toMap<T>(T? item, {InsertionTranslator<T>? translator}) {
-    if (item == null) return null;
-
-    /// TODO ... call [mInsertModel]/[mUpdateModel] method and not translate to OuterMap will get a crash that record in README.md
-    Map<String, Object?>? outerMap = insertionTranslator?.call(item);
-    // cover outerMap by specifiedOuterMap
-    Map<String, Object?>? specifiedOuterMap = translator?.call(item);
-    if (specifiedOuterMap != null) {
-      outerMap?.addAll(specifiedOuterMap);
-    }
-    // item is the result if needed
-    if (outerMap == null && item is Map) {
-      outerMap = item is Map<String, Object?>
-          ? item
-          : Map<String, Object?>.from(item); // outerMap = item.cast<String, Object?>();
-    }
-    return outerMap;
   }
 
   /**
@@ -317,7 +190,7 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
   Future<List<Object?>?> resetWithItems<T>(
     List<T> items, {
     BoxerQueryOption? option,
-    InsertionTranslator<T>? translator,
+    WriteTranslator<T>? translator,
     BatchSyncType? syncType = BatchSyncType.LOCK,
   }) async {
     /// Using a sync lock
@@ -356,8 +229,11 @@ abstract class BoxerTableTranslator extends BoxerTableBase {
 /// In terms of intuitive efficiency, BATCH is the best, BATCH > TRANSACTION > LOCK
 enum BatchSyncType { LOCK, BATCH, TRANSACTION }
 
-/// insert or update, translate to item to Map
-typedef InsertionTranslator<T> = Map<String, Object?> Function(T e);
+/// query translator for translate the table struct columns Map value to item we needed
+typedef QueryTranslator<T> = T Function(Map<String, Object?> e);
+
+/// insert or update, translate to item that mapping the table struct columns Map
+typedef WriteTranslator<T> = Map<String, Object?> Function(T e);
 
 /// function toJson/fromJson/id_fields for Model class
 typedef ModelTranslatorToJson<T> = Map Function(T e);
