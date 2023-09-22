@@ -32,44 +32,18 @@ class BoxerLogger {
   }
 
   /// External Logger function
-  static Function(int level, String tag, String message)? logger;
+  static void Function(int level, String tag, String message)? logger;
 
   static void _log(int level, String? tag, String message) {
-    tag ??= 'BoxerLogger';
+    tag ??= "BoxerLogger";
     if (logger != null) {
       logger!(level, tag, message);
       return;
     }
     assert(() {
-      String prefix = BoxerLogger.levelToString(level);
-      print('$prefix/${DateTime.now()}: [$tag] $message');
+      print("${BoxerLogger.levelToString(level)}/${DateTime.now()}: [$tag] $message");
       return true;
     }());
-  }
-
-  static String levelToString(int level) {
-    String prefix = 'V';
-    switch (level) {
-      case 0:
-        prefix = 'V';
-        break;
-      case 1:
-        prefix = 'D';
-        break;
-      case 2:
-        prefix = 'I';
-        break;
-      case 3:
-        prefix = 'W';
-        break;
-      case 4:
-        prefix = 'E';
-        break;
-      case 5:
-        prefix = 'F';
-        break;
-    }
-    return prefix;
   }
 
   /// Database operations error handler, execute or query sql etc...
@@ -81,8 +55,34 @@ class BoxerLogger {
   /// Only print and evaluate the expression function on debug mode, will omit in production/profile mode
   static void console(String Function() expr) {
     assert(() {
-      print('${DateTime.now()}: ${expr()}');
+      print("${DateTime.now()}: ${expr()}");
       return true;
     }());
+  }
+
+  /// Utils Methods
+  static String levelToString(int level) {
+    String prefix = "V";
+    switch (level) {
+      case 0:
+        prefix = "V";
+        break;
+      case 1:
+        prefix = "D";
+        break;
+      case 2:
+        prefix = "I";
+        break;
+      case 3:
+        prefix = "W";
+        break;
+      case 4:
+        prefix = "E";
+        break;
+      case 5:
+        prefix = "F";
+        break;
+    }
+    return prefix;
   }
 }

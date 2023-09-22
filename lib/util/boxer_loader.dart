@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
 class BoxerLoader<T> {
-  static const String TAG = 'BoxerLoader';
+  static const String TAG = "BoxerLoader";
 
   /// Whether to enable the cache feature
   bool enableCache = true;
@@ -58,7 +58,7 @@ class BoxerLoader<T> {
       loadCacheFuture?.then((value) {
         /// No need the cache data in this moment, cause request data already response successfully
         if (isRequestSuccess) {
-          BoxerLogger.d(null, 'Request data already response, no need to use cache data');
+          BoxerLogger.d(null, "Request data already response, no need to use cache data");
           return;
         }
         results.last = value;
@@ -67,7 +67,7 @@ class BoxerLoader<T> {
         update(value, isValueFromCache: true, isOnlyUpdateView: true);
       }).onError((e, s) {
         if (isRequestSuccess) {
-          BoxerLogger.d(null, 'Request data already response successfully, no need to call error callback');
+          BoxerLogger.d(null, "Request data already response successfully, no need to call error callback");
           return;
         }
         (onLoadError ?? this.onLoadError)?.call(e, s, BoxerLoadType.CACHE);

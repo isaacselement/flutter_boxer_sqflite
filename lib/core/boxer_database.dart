@@ -20,7 +20,7 @@ class BoxerDatabase {
   Database? _database;
 
   Database get database {
-    assert(_database != null, '❗️❗️❗️FATAL!!! You should open database first');
+    assert(_database != null, "❗️❗️❗️FATAL!!! You should open database first");
     return _database!;
   }
 
@@ -45,28 +45,37 @@ class BoxerDatabase {
     openingCompleter = Completer();
     Database? db;
     try {
-      name ??= 'database.db';
+      name ??= "database.db";
 
       /// For windows & linux
       if (Platform.isWindows || Platform.isLinux) {
         path ??= "~/Downloads/";
       }
 
-      path ??= '${await getDatabasesPath()}/$name';
-      if (path?.endsWith('/') ?? false) {
-        path = '$path$name';
+      path ??= "${await getDatabasesPath()}/$name";
+      if (path?.endsWith("/") ?? false) {
+        path = "$path$name";
       }
       String dbPath = path!;
-      BoxerLogger.i(null, '[BoxerDatabase] - opening database, local path is: $dbPath');
+      BoxerLogger.i(null, "[BoxerDatabase] - opening database, local path is: $dbPath");
+      assert(() {
+        () async {
+          File file = File(dbPath);
+          FileStat stat = await file.stat();
+          print('DB file absolute path is: ${file.absolute.path}');
+          print('DB file mode: ${stat.mode.toRadixString(16)}, ${stat.modeString()}');
+        }();
+        return true;
+      }());
 
       /// will sync call onConfigure -> onCreate -> onUpgrade -> onDowngrade -> onOpen if needed
       db = await openDB(path: dbPath, version: version);
       setDatabase(db);
       openingCompleter?.complete(db);
-      BoxerLogger.i(null, '[BoxerDatabase] - open database done');
+      BoxerLogger.i(null, "[BoxerDatabase] - open database done");
     } catch (e, s) {
       openingCompleter?.complete(null);
-      BoxerLogger.f(null, '[BoxerDatabase] - open database error: $e, $s');
+      BoxerLogger.f(null, "[BoxerDatabase] - open database error: $e, $s");
       BoxerLogger.reportFatalError(e, s);
     }
     // so far, the same instance of properties [_database]
@@ -77,7 +86,7 @@ class BoxerDatabase {
     if (_database == null && openingCompleter != null) {
       await openingCompleter!.future;
     }
-    assert(_database != null, '❗️❗️❗️FATAL!!! You database not call `open` or open failed');
+    assert(_database != null, "❗️❗️❗️FATAL!!! You database not call `open` or open failed");
     return _database!;
   }
 
@@ -168,41 +177,31 @@ class BoxerDatabase {
    * Utilities of SQL operation (select/insert/update/delete)
    */
 
-  /// Check if current table created success using 'sqlite_master'
+  /// Check if current table created success using "sqlite_master"
   Future<bool> isTableExisted(String tableName) async {
-    return await BoxerDatabaseUtil.isTableExistedRaw(database, tableName);
-  }
-
-  /// Select count
-  Future<int?> selectCount(String tableName, {String? where, List<Object?>? whereArgs}) async {
-    return await BoxerDatabaseUtil.selectCountRaw(database, tableName, where: where, whereArgs: whereArgs);
-  }
-
-  /// Select Max of column value
-  Future<Object?> selectMax(String tableName, String column) async {
-    return await BoxerDatabaseUtil.selectMaxRaw(database, tableName, column);
-  }
-
-  /// Select Min of column value
-  Future<Object?> selectMin(String tableName, String column) async {
-    return await BoxerDatabaseUtil.selectMinRaw(database, tableName, column);
-  }
-
-  /// Drop table
-  Future<bool> dropTable(String tableName) async {
-    return await BoxerDatabaseUtil.dropTableRaw(database, tableName);
+    return await BoxerDatabaseUtil.isTableExisted(database, tableName);
   }
 
   /// Reset auto increment ID
   Future<void> resetAutoId(String tableName) async {
-    await BoxerDatabaseUtil.resetAutoIdRaw(database, tableName: tableName);
+    await BoxerDatabaseUtil.resetAutoId(database, tableName: tableName);
+  }
+
+  /// Select count
+  Future<int?> selectCount(String tableName, {String? where, List<Object?>? whereArgs}) async {
+    return await BoxerDatabaseUtil.selectCount(database, tableName, where: where, whereArgs: whereArgs);
+  }
+
+  /// Drop table
+  Future<bool> dropTable(String tableName) async {
+    return await BoxerDatabaseUtil.dropTable(database, tableName);
   }
 
   /// Iterate all the tables
   Future<void> iterateAllTables(FutureOr<bool?> Function(String tableName, List<String> columns) iterator) async {
-    return await BoxerDatabaseUtil.iterateAllTablesRaw(database, iterator);
+    return await BoxerDatabaseUtil.iterateAllTables(database, iterator);
   }
 
   /// Get table (except sqlite_master) column names
-  Future<List<String>> getColumnNames(String tableName) => BoxerDatabaseUtil.getColumnNamesRaw(database, tableName);
+  Future<List<String>> getColumnNames(String tableName) => BoxerDatabaseUtil.getColumnNames(database, tableName);
 }

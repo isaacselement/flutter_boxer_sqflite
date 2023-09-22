@@ -30,6 +30,7 @@ class BoxDatabaseManager {
 
     /// Register table instances
     boxer.registerTable(BoxTableManager.cacheTableCommon);
+    boxer.registerTable(BoxTableManager.cacheTableTasks);
     boxer.registerTable(BoxTableManager.cacheTableSettings);
     boxer.registerTable(BoxTableManager.cacheTableStudents);
 
@@ -52,11 +53,13 @@ class BoxDatabaseManager {
 class BoxTableManager {
   /// private table names，business can access by BoxCacheTable.tableName
   static const String _kNAME_BIZ_COMMON = 'cache_table_common';
+  static const String _kNAME_BIZ_TASKS = 'cache_table_tasks';
   static const String _kNAME_BIZ_SETTINGS = 'cache_table_settings';
   static const String _kNAME_BIZ_STUDENTS = 'cache_table_students';
 
   /// It's better offer corresponding `get` method in `CacheTableHandler` to access these table instances
   static BoxCacheTable cacheTableCommon = BoxCacheTable(tableName: _kNAME_BIZ_COMMON);
+  static BoxCacheTable cacheTableTasks = BoxCacheTable(tableName: _kNAME_BIZ_TASKS);
   static BoxCacheTable cacheTableSettings = BoxCacheTable(tableName: _kNAME_BIZ_SETTINGS);
   static BoxCacheTable cacheTableStudents = BoxCacheTable(tableName: _kNAME_BIZ_STUDENTS);
 }

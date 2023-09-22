@@ -178,11 +178,6 @@ abstract class BoxerTableTranslator extends BoxerTableInterceptor
     return await selectCount(where: options?.where, whereArgs: options?.whereArgs);
   }
 
-  /// Clear rows
-  Future<int> clear([BoxerQueryOption? options]) async {
-    return await delete(where: options?.where, whereArgs: options?.whereArgs);
-  }
-
   /// Using the lock, for making `Clear and Insert` jobs execute in serial queue
   CallLock mOperationsSyncLock = CallLock.create();
 
@@ -196,7 +191,7 @@ abstract class BoxerTableTranslator extends BoxerTableInterceptor
     /// Using a sync lock
     if (syncType == BatchSyncType.LOCK) {
       return await mOperationsSyncLock.call<List<int>?>(() async {
-        await clear(option);
+        await delete(options: option);
         return await mInserts<T>(items, translator: translator);
       });
     }
@@ -205,7 +200,7 @@ abstract class BoxerTableTranslator extends BoxerTableInterceptor
     if (syncType == BatchSyncType.BATCH) {
       return await doBatch((clone) {
         clone as BoxerTableTranslator;
-        clone.clear(option);
+        clone.delete(options: option);
         clone.mInserts<T>(items, translator: translator);
       });
     }
@@ -214,14 +209,14 @@ abstract class BoxerTableTranslator extends BoxerTableInterceptor
     if (syncType == BatchSyncType.TRANSACTION) {
       return await doTransaction((clone) async {
         clone as BoxerTableTranslator;
-        await clone.clear(option);
+        await clone.delete(options: option);
         return await clone.mInserts<T>(items, translator: translator);
       });
     }
 
     /// Note, set syncType to null is unsafe if method re-entrance many times immediately
     /// In other words, it is safe when method enter once or re-enter after a long time, the scenario that you really know about
-    await clear(option);
+    await delete(options: option);
     return await mInserts<T>(items, translator: translator);
   }
 }

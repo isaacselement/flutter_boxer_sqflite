@@ -63,21 +63,41 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
   Future<void> _refreshDataSourceRaw() async {
     await BoxDatabaseManager.init();
     datasource.clear();
+
+    /// 1. normal tables we created, including sqlite_sequence
     await BoxDatabaseManager.boxer.iterateAllTables((tableName, columns) async {
       Map<String, dynamic>? map = {};
-
-      /// Row count for table
-      int? rowsCount = await BoxDatabaseManager.boxer.selectCount(tableName);
       List<Map<String, Object?>> rowsResults = await BoxDatabaseManager.boxer.database.query(tableName);
-
-      /// Update to datasource
       map[TableView.keyTblName] = tableName;
       map[TableView.keyTblColumns] = columns;
-      map[TableView.keyTblRowCount] = rowsCount;
+      map[TableView.keyTblRowCount] = rowsResults.length;
       map[TableView.keyTblRowResults] = rowsResults;
 
       datasource.add(map);
       return false;
+    });
+
+    /// 2. sqlite_master
+    String tableName = 'sqlite_master';
+    String sql = "SELECT * FROM $tableName";
+    List<String> columns = ['type', 'name', 'tbl_name', 'rootpage', 'sql'];
+
+    Map<String, dynamic>? map = {};
+    List<Map<String, Object?>> rowsResults = await BoxDatabaseManager.boxer.database.rawQuery(sql);
+    map[TableView.keyTblName] = tableName;
+    map[TableView.keyTblColumns] = columns;
+    map[TableView.keyTblRowCount] = rowsResults.length;
+    map[TableView.keyTblRowResults] = rowsResults;
+
+    datasource.add(map);
+
+    datasource.sort((a, b) {
+      String an = a[TableView.keyTblName] ?? '';
+      String bn = b[TableView.keyTblName] ?? '';
+      if (an == BoxCacheHandler.commonTable.tableName) return -1;
+      if (an == 'sqlite_sequence') return 1;
+      if (an == 'sqlite_master') return 1;
+      return an.compareTo(bn);
     });
   }
 
@@ -85,6 +105,8 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
 
   Future<void> refreshWholeTablesUIOnly() async {
     List<Widget> children = [];
+
+    /// 1.
     for (int i = 0; i < datasource.length; i++) {
       Map<String, dynamic> map = datasource[i];
       String tableName = map[TableView.keyTblName];
@@ -108,6 +130,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
       children.add(collapseWidget);
     }
 
+    /// 2.
     children.add(SizedBox(height: 38));
     allTableWidgets = Column(children: children);
     if (mounted) {
@@ -145,7 +168,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                       refreshDataSourceWithScrollToBottom(BoxCacheHandler.commonTable.tableName);
                     }),
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Clear self', (Map action) async {
-                      await BoxCacheHandler.commonTable.clear(); // care about the userId & roleId
+                      await BoxCacheHandler.commonTable.delete(); // care about the userId & roleId
                       refreshDataSourceWithScrollToBottom(BoxCacheHandler.commonTable.tableName);
                     }),
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Reset auto id', (Map action) async {
@@ -221,6 +244,18 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                       );
                       refreshDataSourceWithScrollToBottom(BoxCacheHandler.commonTable.tableName);
                       BoxerLogger.d(TAG, '--------->>>>> inserted Bread Map [newest] id: $insertedId');
+                    }),
+                    WidgetUtil.actionSheetItem(Icons.one_k, 'Insert Different UserId & RoleId', (Map action) async {
+                      int insertedId = await BoxCacheHandler.commonTable.mInsertModel<Bread>(
+                        BreadGenerator.oneModel,
+                        translator: (e) => {
+                          BoxCacheTable.kCOLUMN_ITEM_TYPE: 'XXXXXX',
+                          BoxCacheTable.kCOLUMN_USER_ID: 800,
+                          BoxCacheTable.kCOLUMN_ROLE_ID: 800900,
+                        },
+                      );
+                      refreshDataSourceWithScrollToBottom(BoxCacheHandler.commonTable.tableName);
+                      BoxerLogger.d(TAG, '--------->>>>> inserted Bread Model for Different User: $insertedId');
                     }),
                   ];
                   WidgetUtil.showActionSheet(sheet: sheet);

@@ -16,7 +16,6 @@ class BoxCacheTable extends BoxerTableTranslator {
   static const String kCOLUMN_ROLE_ID = 'ROLE_ID';
 
   static int currentUserId = 0;
-
   static int currentRoleId = 0;
 
   BoxCacheTable({required String tableName}) : super() {
@@ -64,6 +63,8 @@ class BoxCacheTable extends BoxerTableTranslator {
   }
 
   late String _tableName;
+  bool isRoleIdConcerned = true;
+  bool isUserIdConcerned = true;
 
   @override
   String get tableName => _tableName;
@@ -84,7 +85,9 @@ class BoxCacheTable extends BoxerTableTranslator {
       'CREATE INDEX IF NOT EXISTS Idx_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
 
   @override
-  BoxerTableBase? clone() => BoxCacheTable(tableName: this.tableName);
+  BoxerTableBase? clone() => BoxCacheTable(tableName: this.tableName)
+    ..isRoleIdConcerned = this.isRoleIdConcerned
+    ..isUserIdConcerned = this.isUserIdConcerned;
 
   @override
   void onQuery(BoxerQueryOption options) {
@@ -99,7 +102,12 @@ class BoxCacheTable extends BoxerTableTranslator {
   @override
   void onInsertValues(Map<String, Object?> values) {
     values['$kCOLUMN_CREATE_TIME'] = DateTime.now().millisecondsSinceEpoch;
-    values.addAll({kCOLUMN_USER_ID: currentUserId, kCOLUMN_ROLE_ID: currentRoleId});
+    if (isUserIdConcerned) {
+      values[kCOLUMN_USER_ID] ??= currentUserId;
+    }
+    if (isRoleIdConcerned) {
+      values[kCOLUMN_ROLE_ID] ??= currentRoleId;
+    }
   }
 
   @override
@@ -108,28 +116,43 @@ class BoxCacheTable extends BoxerTableTranslator {
     optionsWithUserRoleId(options);
   }
 
-  bool isRoleUnconcerned = false;
-
   BoxerQueryOption optionsWithUserRoleId(BoxerQueryOption options) {
-    BoxerQueryOption op = BoxerQueryOption.e(column: kCOLUMN_USER_ID, value: currentUserId);
-    if (isRoleUnconcerned == false) {
-      op = op.merge(BoxerQueryOption.e(column: kCOLUMN_ROLE_ID, value: currentRoleId)).group();
+    BoxerQueryOption? opUserId = null;
+    BoxerQueryOption? opRoleId = null;
+    if (isUserIdConcerned) {
+      opUserId = BoxerQueryOption.e(column: kCOLUMN_USER_ID, value: currentUserId);
     }
-    op = op.merge(options);
-    options.set(op);
+    if (isRoleIdConcerned) {
+      opRoleId = BoxerQueryOption.e(column: kCOLUMN_ROLE_ID, value: currentRoleId);
+    }
+    BoxerQueryOption? op = null;
+    if (opUserId != null && opRoleId != null) {
+      op = BoxerQueryOption.merge([opUserId, opRoleId]).group();
+    } else {
+      op = opUserId ?? opRoleId;
+    }
+    if (op != null) {
+      options.insert(where: op.where, whereArgs: op.whereArgs, isInsertInFront: true);
+    }
     return options;
   }
 
-  /// Override query methods
+  /**
+   * Override BoxerQueryFunctions methods
+   */
 
   @override
   Future<T?> one<T>({
+    String? type,
+    String? itemId,
     BoxerQueryOption? options,
     ModelTranslatorFromJson<T>? fromJson,
     bool isReThrow = false,
   }) async {
     try {
-      return await super.one<T>(options: options, fromJson: fromJson);
+      BoxerQueryOption op = getOptions(id: null, type: type, itemId: itemId);
+      op = options?.merge(op) ?? op;
+      return await super.one<T>(options: op, fromJson: fromJson);
     } catch (e, s) {
       if (isReThrow) rethrow;
       BoxerLogger.e(TAG, '$tableName method [one] error: $e, $s');
@@ -138,21 +161,71 @@ class BoxCacheTable extends BoxerTableTranslator {
   }
 
   @override
-  Future<List<T?>> list<T>({
+  Future<T?> first<T>({
+    String? type,
+    String? itemId,
     BoxerQueryOption? options,
     ModelTranslatorFromJson<T>? fromJson,
     bool isReThrow = false,
   }) async {
     try {
-      return await super.list<T>(options: options, fromJson: fromJson);
+      BoxerQueryOption op = getOptions(id: null, type: type, itemId: itemId);
+      op = options?.merge(op) ?? op;
+      op.orderBy = kCOLUMN_ID;
+      return await super.first<T>(options: op, fromJson: fromJson);
     } catch (e, s) {
       if (isReThrow) rethrow;
-      BoxerLogger.e(TAG, '$tableName method [list] error: $e, $s');
+      BoxerLogger.e(TAG, '$tableName method [first] error: $e, $s');
+    }
+    return null;
+  }
+
+  @override
+  Future<T?> last<T>({
+    String? type,
+    String? itemId,
+    BoxerQueryOption? options,
+    ModelTranslatorFromJson<T>? fromJson,
+    bool isReThrow = false,
+  }) async {
+    try {
+      BoxerQueryOption op = getOptions(id: null, type: type, itemId: itemId);
+      op = options?.merge(op) ?? op;
+      op.orderBy = kCOLUMN_ID;
+      return await super.last<T>(options: op, fromJson: fromJson);
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [last] error: $e, $s');
+    }
+    return null;
+  }
+
+  /// use [fromJson] to translate to model [T]
+  /// if [fromJson] is null, the translator that registered in [BoxerTableTranslator.modelTranslators] will be use
+  /// or call results' [Iterable.map<T>(T fn(E e)).toList()] method, for any other types your want to translate to
+  @override
+  Future<List<T?>> list<T>({
+    int? id,
+    String? type,
+    String? itemId,
+    BoxerQueryOption? options,
+    ModelTranslatorFromJson<T>? fromJson,
+    bool isReThrow = false,
+  }) async {
+    try {
+      BoxerQueryOption op = getOptions(id: id, type: type, itemId: itemId);
+      op = options?.merge(op) ?? op;
+      return await super.list<T>(options: op, fromJson: fromJson);
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [fetch] error: $e, $s');
     }
     return [];
   }
 
-  /// Subclass additional methods.  [id, type, itemId] relevant
+  /**
+   * Subclass additional convenient methods. [id, type, itemId] relevant
+   */
 
   Future<int> add({
     String? type,
@@ -163,8 +236,8 @@ class BoxCacheTable extends BoxerTableTranslator {
     try {
       return await mInsert(value, translator: (e) {
         return {
-          BoxCacheTable.kCOLUMN_ITEM_TYPE: type,
-          BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
+          if (type != null) BoxCacheTable.kCOLUMN_ITEM_TYPE: type,
+          if (itemId != null) BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
         };
       });
     } catch (e, s) {
@@ -178,10 +251,13 @@ class BoxCacheTable extends BoxerTableTranslator {
     int? id,
     String? type,
     String? itemId,
+    BoxerQueryOption? options,
     bool isReThrow = false,
   }) async {
     try {
-      return await delete(options: getOptions(id: id, type: type, itemId: itemId));
+      BoxerQueryOption op = getOptions(id: id, type: type, itemId: itemId);
+      op = options?.merge(op) ?? op;
+      return await delete(options: op);
     } catch (e, s) {
       if (isReThrow) rethrow;
       BoxerLogger.e(TAG, '$tableName method [remove] error: $e, $s');
@@ -193,11 +269,14 @@ class BoxCacheTable extends BoxerTableTranslator {
     int? id,
     String? type,
     String? itemId,
+    BoxerQueryOption? options,
     ModelTranslatorFromJson<T>? fromJson,
     bool isReThrow = false,
   }) async {
     try {
-      return await one<T>(options: getOptions(id: id, type: type, itemId: itemId), fromJson: fromJson);
+      BoxerQueryOption op = getOptions(id: id, type: type, itemId: itemId);
+      op = options?.merge(op) ?? op;
+      return await one<T>(options: op, fromJson: fromJson);
     } catch (e, s) {
       if (isReThrow) rethrow;
       BoxerLogger.e(TAG, '$tableName method [get] error: $e, $s');
@@ -205,37 +284,31 @@ class BoxCacheTable extends BoxerTableTranslator {
     return null;
   }
 
-  /// [set] is using BATCH mode, [remove] the same type and itemId, then [add] the new one
-  Future<void> set({
+  /// unlike [reset] method
+  /// [set]/[modify] method just update the [value] for specified [id]/[type]/[itemId] without [remove]
+  Future<int> set({
+    int? id,
     String? type,
     String? itemId,
     dynamic value,
+    BoxerQueryOption? options,
     bool isReThrow = false,
   }) async {
-    try {
-      List<Object?>? result = await doBatch((clone) {
-        clone as BoxCacheTable;
-        clone.remove(type: type, itemId: itemId);
-        clone.add(type: type, itemId: itemId, value: value);
-      });
-
-      /// TODO ... check out the result ~~~
-    } catch (e, s) {
-      if (isReThrow) rethrow;
-      BoxerLogger.e(TAG, '$tableName method [set] error: $e, $s');
-    }
+    return await modify(id: id, type: type, itemId: itemId, value: value, options: options, isReThrow: isReThrow);
   }
 
-  /// unlike [set] method, [modify] just update the [value] for specified [id] / [type] / [itemId]
   Future<int> modify({
     int? id,
     String? type,
     String? itemId,
     dynamic value,
+    BoxerQueryOption? options,
     bool isReThrow = false,
   }) async {
     try {
-      return await mUpdate(value, options: getOptions(id: id, type: type, itemId: itemId));
+      BoxerQueryOption op = getOptions(id: id, type: type, itemId: itemId);
+      op = options?.merge(op) ?? op;
+      return await mUpdate(value, options: op);
     } catch (e, s) {
       if (isReThrow) rethrow;
       BoxerLogger.e(TAG, '$tableName method [change] error: $e, $s');
@@ -243,22 +316,49 @@ class BoxCacheTable extends BoxerTableTranslator {
     return 0;
   }
 
-  /// [eliminate] is for convenient delete some older records if the number of records exceeds the limit
-  Future<int?> eliminate({
-    required BoxerQueryOption options,
-    required int limit,
+  /// unlike [set]/[modify] method
+  /// [reset] is using BATCH mode, [remove] the same [id]/[itemId]/[type], then [add] a new one
+  Future<void> reset({
+    int? id,
+    String? type,
+    String? itemId,
+    dynamic value,
     bool isReThrow = false,
   }) async {
     try {
-      int size = await super.count(options) ?? 0;
-      if (size > limit) {
-        int minID = (await minId()) ?? 0;
-        int maxID = (await maxId()) ?? 0;
-        int lessThan = (maxID - (maxID - minID) ~/ 2) + 1;
-        BoxerQueryOption op = BoxerQueryOption.l(column: BoxCacheTable.kCOLUMN_ID, value: lessThan);
-        options = BoxerQueryOption.merge([options, op]);
+      /* List<Object?>? result = */ await doBatch((clone) {
+        clone as BoxCacheTable;
+        clone.remove(id: id, type: type, itemId: itemId);
+        clone.add(type: type, itemId: itemId, value: value);
+      });
+      // the batch result is [deleted_count, inserted_id]
+    } catch (e, s) {
+      if (isReThrow) rethrow;
+      BoxerLogger.e(TAG, '$tableName method [set] error: $e, $s');
+    }
+  }
+
+  /// [eliminate] is for convenient delete some older records if the number of records exceeds the limit
+  Future<int?> eliminate({
+    required int limit,
+    String? type,
+    BoxerQueryOption? options,
+    bool isReThrow = false,
+  }) async {
+    try {
+      BoxerQueryOption op = getOptions(id: null, type: type, itemId: null);
+      op = options?.merge(op) ?? op;
+      int size = await super.count(op) ?? 0;
+      if (size <= limit) {
+        /// no need to eliminate
+        return 0;
       }
-      return await clear(options);
+      int minID = (await minId(options: op)) ?? 0;
+      int maxID = (await maxId(options: op)) ?? 0;
+      int lessThan = (maxID - ((maxID - minID) ~/ 2)) + 1;
+      BoxerQueryOption op1 = BoxerQueryOption.l(column: BoxCacheTable.kCOLUMN_ID, value: lessThan);
+      op = BoxerQueryOption.merge([op, op1]);
+      return await delete(options: op);
     } catch (e, s) {
       if (isReThrow) rethrow;
       BoxerLogger.e(TAG, '$tableName method [eliminate] error: $e, $s');
@@ -274,7 +374,7 @@ class BoxCacheTable extends BoxerTableTranslator {
     addIfNotNull(columns, id, BoxCacheTable.kCOLUMN_ID);
     addIfNotNull(columns, type, BoxCacheTable.kCOLUMN_ITEM_TYPE);
     addIfNotNull(columns, itemId, BoxCacheTable.kCOLUMN_ITEM_ID);
-    List<String> values = [];
+    List<Object?> values = [];
     addIfNotNull(values, id, id);
     addIfNotNull(values, type, type);
     addIfNotNull(values, itemId, itemId);
@@ -282,13 +382,13 @@ class BoxCacheTable extends BoxerTableTranslator {
     return BoxerQueryOption.eq(columns: columns, values: values);
   }
 
-  Future<int?> maxId() async {
-    Object? object = await selectMax(BoxCacheTable.kCOLUMN_ID);
+  Future<int?> maxId({BoxerQueryOption? options}) async {
+    Object? object = await selectMax(BoxCacheTable.kCOLUMN_ID, where: options?.where, whereArgs: options?.whereArgs);
     return (object is int) ? object : null;
   }
 
-  Future<int?> minId() async {
-    Object? object = await selectMin(BoxCacheTable.kCOLUMN_ID);
+  Future<int?> minId({BoxerQueryOption? options}) async {
+    Object? object = await selectMin(BoxCacheTable.kCOLUMN_ID, where: options?.where, whereArgs: options?.whereArgs);
     return (object is int) ? object : null;
   }
 }

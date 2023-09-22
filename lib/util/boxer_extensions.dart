@@ -6,7 +6,7 @@ extension ListEx<E> on List<E> {
   //
   // E? atSafe(int index) => (isEmpty || index < 0 || index >= length) ? null : elementAt(index);
 
-  /// [1, 2, 3] join in a 'so' => [1, so, 2, so, 3]
+  /// [1, 2, 3] join in a "so" => [1, so, 2, so, 3]
   void joinIn(E object) {
     Iterator<E> iterator = this.iterator;
     if (!iterator.moveNext()) return;

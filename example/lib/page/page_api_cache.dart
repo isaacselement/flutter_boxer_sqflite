@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:example/common/util/toast_helper.dart';
 import 'package:example/database/box_cache_handler.dart';
+import 'package:example/database/box_cache_table.dart';
 import 'package:example/database/box_database_manager.dart';
 import 'package:example/model/bread_api.dart';
 import 'package:example/widget/table_view.dart';
@@ -42,31 +43,53 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
     setState(() {});
   }
 
+  List<Map<String, dynamic>> datasource = [];
+  Map<String, ScrollController> scrollControllers = {};
+
+  void clearDatasource() {
+    String tableName = mTable.tableName;
+    scrollControllers[tableName] ??= ScrollController();
+
+    datasource.clear();
+    Map<String, dynamic>? map = {};
+    List<dynamic> rowsResults = [];
+    map[TableView.keyTblName] = tableName;
+    map[TableView.keyTblColumns] = BreadGenerator.oneModel.toJson().keys.toList();
+    map[TableView.keyTblRowCount] = rowsResults.length;
+    map[TableView.keyTblRowResults] = rowsResults;
+    datasource.add(map);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Widget createTableView() {
+    List<Widget> children = [];
+    for (int i = 0; i < datasource.length; i++) {
+      Map<String, dynamic> map = datasource[i];
+      String tableName = map[TableView.keyTblName];
+
+      Widget oneTableWidget = TableView(
+        tableName: tableName,
+        columnNames: List<String>.from(map[TableView.keyTblColumns]),
+        rowsCount: map[TableView.keyTblRowCount],
+        rowsResults: List<Map<String, Object?>>.from(map[TableView.keyTblRowResults]),
+        scrollController: scrollControllers[tableName],
+        height: 600,
+        isShowSeq: true,
+      );
+      children.add(oneTableWidget);
+    }
+    if (children.isNotEmpty) {
+      children.add(SizedBox(height: 38));
+    }
+    return Column(children: children);
+  }
+
+  BoxCacheTable get mTable => BoxCacheHandler.commonTable;
+
   @override
   Widget build(BuildContext context) {
-    Widget createTableView() {
-      List<Widget> children = [];
-      for (int i = 0; i < datasource.length; i++) {
-        Map<String, dynamic> map = datasource[i];
-        String tableName = map[TableView.keyTblName];
-
-        Widget oneTableWidget = TableView(
-          tableName: tableName,
-          columnNames: List<String>.from(map[TableView.keyTblColumns]),
-          rowsCount: map[TableView.keyTblRowCount],
-          rowsResults: List<Map<String, Object?>>.from(map[TableView.keyTblRowResults]),
-          scrollController: listScrollControllers[tableName],
-          height: 600,
-          isShowSeq: true,
-        );
-        children.add(oneTableWidget);
-      }
-      if (children.isNotEmpty) {
-        children.add(SizedBox(height: 38));
-      }
-      return Column(children: children);
-    }
-
     return SingleChildScrollView(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -143,28 +166,12 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
     );
   }
 
-  List<Map<String, dynamic>> datasource = [];
-  Map<String, ScrollController> listScrollControllers = {};
-
+  /// Use [cacheDuration] & [requestDuration] to simulate the delay time of cache & request
+  /// for controlling the arrival order of cache & request
+  /// Use [isThrowErrorOnCache] & [isThrowErrorOnRequest] to simulate the error on cache & request
+  /// for testing the error handling on cache & request
   bool isThrowErrorOnCache = false;
   bool isThrowErrorOnRequest = false;
-
-  void clearDatasource() {
-    String tableName = BoxCacheHandler.commonTable.tableName;
-    listScrollControllers[tableName] ??= ScrollController();
-
-    datasource.clear();
-    Map<String, dynamic>? map = {};
-    List<dynamic> rowsResults = [];
-    map[TableView.keyTblName] = tableName;
-    map[TableView.keyTblColumns] = BreadGenerator.oneModel.toJson().keys.toList();
-    map[TableView.keyTblRowCount] = rowsResults.length;
-    map[TableView.keyTblRowResults] = rowsResults;
-    datasource.add(map);
-    if (mounted) {
-      setState(() {});
-    }
-  }
 
   Future<void> refreshDataSourceDuration({
     Duration? cacheDuration,
@@ -238,10 +245,10 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
     if (isThrowErrorOnCache) {
       throw Exception('Cache error');
     }
-    return await BoxCommonTableHandler.loadDataList('BREAD');
+    return await BoxTableHandler(table: mTable).loadDataList(type: 'BREAD');
   }
 
   Future<void> updateToCache(List<dynamic> value) async {
-    await BoxCommonTableHandler.updateDataList(value, 'BREAD');
+    await BoxTableHandler(table: mTable).updateDataList(value, type: 'BREAD');
   }
 }

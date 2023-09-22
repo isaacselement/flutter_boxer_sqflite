@@ -12,7 +12,7 @@ mixin BoxerUpdateFunctions on BoxerTableInterceptor {
   /// using batch update the items if supported
   Future<int> mUpdates<T>(List<T> items, {BoxerQueryOption? options, WriteTranslator<T>? translator}) async {
     if (cloneInstance == null) {
-      // CallLock lock = CallLock.get('$tableName.mUpdates');
+      // CallLock lock = CallLock.get("$tableName.mUpdates");
       // return await lock.call<int>(() async {
       int count = 0;
       for (T item in items) {
@@ -41,7 +41,7 @@ mixin BoxerUpdateFunctions on BoxerTableInterceptor {
     WriteTranslator<T>? translator,
   }) async {
     if (cloneInstance == null) {
-      // CallLock lock = CallLock.get('$tableName.mUpdateModels');
+      // CallLock lock = CallLock.get("$tableName.mUpdateModels");
       // return await lock.call<int>(() async {
       int count = 0;
       for (T model in models) {
@@ -76,7 +76,8 @@ mixin BoxerUpdateFunctions on BoxerTableInterceptor {
     WriteTranslator<Map<String, Object?>>? translatorOuter = (e) => translator?.call(model) ?? {};
     Map<String, dynamic>? fields = BoxerTableTranslator.getModelIdentifyFields<T>()?.call(model);
     if (fields != null && fields.isNotEmpty) {
-      options = BoxerQueryOption.eq(columns: fields.keys.toList(), values: fields.values.toList()).merge(options);
+      BoxerQueryOption op = BoxerQueryOption.eq(columns: fields.keys.toList(), values: fields.values.toList());
+      options = options?.merge(op) ?? op;
     }
 
     return await mUpdate(values, options: options, translator: translatorOuter);
@@ -84,7 +85,7 @@ mixin BoxerUpdateFunctions on BoxerTableInterceptor {
 
   Future<int> mUpdate<T>(T? item, {BoxerQueryOption? options, WriteTranslator<T>? translator}) async {
     Map<String, Object?>? map = translate2TableMap(item, translator: translator);
-    assert(map != null, 'Values(${item.runtimeType}) update prohibited, should translate to a [Map] using translator');
+    assert(map != null, "Values(${item.runtimeType}) update prohibited, should translate to a [Map] using translator");
     if (map == null) return 0;
     return await update(map, options: options, conflictAlgorithm: ConflictAlgorithm.replace);
   }

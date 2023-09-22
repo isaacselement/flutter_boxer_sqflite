@@ -1,3 +1,5 @@
+import 'package:flutter_boxer_sqflite/util/boxer_extensions.dart';
+
 /// Class of holding the query/where sql parameters
 class BoxerQueryOption {
   bool? distinct;
@@ -12,7 +14,7 @@ class BoxerQueryOption {
 
   BoxerQueryOption();
 
-  void set(BoxerQueryOption? option) {
+  BoxerQueryOption reset({BoxerQueryOption? option}) {
     distinct = option?.distinct;
     columns = option?.columns;
     where = option?.where;
@@ -22,18 +24,61 @@ class BoxerQueryOption {
     orderBy = option?.orderBy;
     limit = option?.limit;
     offset = option?.offset;
+    return this;
+  }
+
+  BoxerQueryOption clone() {
+    BoxerQueryOption newOp = BoxerQueryOption();
+    newOp.distinct = this.distinct;
+    newOp.columns = this.columns;
+    newOp.where = this.where;
+    newOp.whereArgs = this.whereArgs;
+    newOp.groupBy = this.groupBy;
+    newOp.having = this.having;
+    newOp.orderBy = this.orderBy;
+    newOp.limit = this.limit;
+    newOp.offset = this.offset;
+    return newOp;
   }
 
   BoxerQueryOption group() {
-    if (where != null) {
+    String? _where = where;
+    if (_where != null && (_where = _where.trim()).isNotEmpty) {
       where = ' ( $where ) ';
     }
     return this;
   }
 
-  BoxerQueryOption merge(BoxerQueryOption? option) {
-    if (option == null) return this;
-    return BoxerQueryOption.merge([this, option]);
+  BoxerQueryOption merge(
+    BoxerQueryOption? option, {
+    BoxerOptionType join = BoxerOptionType.AND,
+  }) {
+    if (option == null) return this.clone();
+    return BoxerQueryOption.merge([this, option], join: join);
+  }
+
+  void insert({
+    String? where,
+    List<Object?>? whereArgs,
+    BoxerOptionType join = BoxerOptionType.AND,
+    bool isInsertInFront = false,
+  }) {
+    if (where == null || (where = where.trim()).isEmpty) return;
+
+    /// insert where
+    String? _where = this.where;
+    if (_where == null || (_where = _where.trim()).isEmpty) {
+      this.where = where;
+    } else {
+      this.where = joinWith(isInsertInFront ? [where, _where] : [_where, where], join);
+    }
+
+    /// insert where arguments
+    if (whereArgs != null && whereArgs.isNotEmpty) {
+      List<Object?> _whereArgs = List<Object?>.from(this.whereArgs ??= []);
+      isInsertInFront ? _whereArgs.insertAll(0, whereArgs) : _whereArgs.addAll(whereArgs);
+      this.whereArgs = _whereArgs;
+    }
   }
 
   /// equals
@@ -47,7 +92,7 @@ class BoxerQueryOption {
     BoxerOptionType join = BoxerOptionType.AND,
   }) {
     ensureLegality(columns: columns, values: values);
-    String _where = columns.map((e) => '$e = ?').toList().join(mBoxerOptionTypeToString(join));
+    String? _where = joinWith(columns.map((e) => '$e = ?').toList(), join);
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
@@ -74,7 +119,7 @@ class BoxerQueryOption {
   }) {
     ensureLegality(columns: columns, values: values);
     // != , <> both ok
-    String _where = columns.map((e) => '$e != ?').toList().join(mBoxerOptionTypeToString(join));
+    String? _where = joinWith(columns.map((e) => '$e != ?').toList(), join);
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
@@ -100,7 +145,7 @@ class BoxerQueryOption {
     BoxerOptionType join = BoxerOptionType.AND,
   }) {
     ensureLegality(columns: columns, values: values);
-    String _where = columns.map((e) => '$e < ?').toList().join(mBoxerOptionTypeToString(join));
+    String? _where = joinWith(columns.map((e) => '$e < ?').toList(), join);
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
@@ -126,7 +171,7 @@ class BoxerQueryOption {
     BoxerOptionType join = BoxerOptionType.AND,
   }) {
     ensureLegality(columns: columns, values: values);
-    String _where = columns.map((e) => '$e > ?').toList().join(mBoxerOptionTypeToString(join));
+    String? _where = joinWith(columns.map((e) => '$e > ?').toList(), join);
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
@@ -150,7 +195,7 @@ class BoxerQueryOption {
     required List<String> columns,
     BoxerOptionType join = BoxerOptionType.AND,
   }) {
-    String _where = columns.map((e) => '$e IS NULL').toList().join(mBoxerOptionTypeToString(join));
+    String? _where = joinWith(columns.map((e) => '$e IS NULL').toList(), join);
     return BoxerQueryOption()..where = _where;
   }
 
@@ -165,27 +210,66 @@ class BoxerQueryOption {
     BoxerOptionType join = BoxerOptionType.AND,
   }) {
     ensureLegality(columns: columns, values: values);
-    String _where = columns.map((e) => '$e LIKE ?').toList().join(mBoxerOptionTypeToString(join));
+    String? _where = joinWith(columns.map((e) => '$e LIKE ?').toList(), join);
     return BoxerQueryOption()
       ..where = _where
       ..whereArgs = values;
   }
 
-  /// merge different where clause, only support where clause now
+  /// [Attention] `groupBy` `having` `limit` `offset` are implemented by [merge]
   factory BoxerQueryOption.merge(
     List<BoxerQueryOption> options, {
     BoxerOptionType join = BoxerOptionType.AND,
   }) {
+    bool? distinct;
+    List<String> columns = [];
     List<String> wheres = [];
-    List<Object?> values = [];
+    List<Object?> whereArgs = [];
+    List<String> orderBys = [];
     options.forEach((e) {
-      if (e.where != null) wheres.add(e.where!);
-      if (e.whereArgs != null) values.addAll(e.whereArgs!);
+      // use the last one
+      if (e.distinct != null) distinct = e.distinct;
+
+      /// columns
+      if (e.columns != null) columns.addAll(e.columns!);
+
+      /// where and whereArgs
+      String? _where = e.where;
+      if (_where != null && (_where = _where.trim()).isNotEmpty) {
+        wheres.add(_where);
+        // Important: u may ensure that the 'whereArgs' is not null, and its length is equal with 'where' clause
+        if (e.whereArgs != null) whereArgs.addAll(e.whereArgs!);
+      }
+
+      /// orderBy
+      String? _orderBy = e.orderBy;
+      if (_orderBy != null && (_orderBy = _orderBy.trim()).isNotEmpty) {
+        orderBys.add(_orderBy);
+      }
     });
-    String _where = wheres.join(mBoxerOptionTypeToString(join));
-    return BoxerQueryOption()
-      ..where = _where
-      ..whereArgs = values;
+
+    /// use the first one as the clone template
+    BoxerQueryOption newOp = options.firstSafe?.clone() ?? BoxerQueryOption();
+    String? _where = joinWith(wheres, join);
+    List<Object?>? _whereArgs = whereArgs.isEmpty ? null : whereArgs;
+
+    /// assign the merge value to the new option obj
+    newOp.where = _where;
+    newOp.whereArgs = _whereArgs;
+    if (columns.isNotEmpty) {
+      newOp.columns = columns;
+    }
+    if (orderBys.isNotEmpty) {
+      newOp.orderBy = orderBys.join(", ");
+    }
+
+    newOp.distinct = distinct;
+
+    /// TODO ... groupBy MERGE NOT IMPLEMENTATION
+    /// TODO ... having MERGE NOT IMPLEMENTATION
+    /// TODO ... limit MERGE NOT IMPLEMENTATION, WHICH ONE TO USE?
+    /// TODO ... offset MERGE NOT IMPLEMENTATION, WHICH ONE TO USE?
+    return newOp;
   }
 
   /// Utils
@@ -208,7 +292,18 @@ class BoxerQueryOption {
     return illegal;
   }
 
-  static String mBoxerOptionTypeToString(BoxerOptionType type) => type == BoxerOptionType.AND ? ' AND ' : ' OR ';
+  static String? joinWith(List<String> list, BoxerOptionType type) {
+    String where = list.join(optionTypeToString(type));
+    return where.trim().isEmpty ? null : where;
+  }
+
+  static String optionTypeToString(BoxerOptionType type) {
+    if (type == BoxerOptionType.AND) {
+      return ' AND ';
+    } else {
+      return ' OR ';
+    }
+  }
 }
 
 enum BoxerOptionType { AND, OR }

@@ -156,4 +156,21 @@ class WidgetUtil {
       ..containerBackgroundColor = Colors.transparent
       ..containerShadowColor = Colors.transparent;
   }
+
+  /// Switcher Widget
+  static Widget oneSwitcher({required String text, required Btv<bool> value}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(text),
+        Btw(
+          builder: (context) => Switch(
+            value: value.value,
+            activeColor: Colors.green,
+            onChanged: (bool v) => value.value = v,
+          ),
+        ),
+      ],
+    );
+  }
 }

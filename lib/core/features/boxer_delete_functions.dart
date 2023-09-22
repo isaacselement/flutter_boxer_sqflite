@@ -6,4 +6,6 @@ import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 ///
 ///
 
-mixin BoxerDeleteFunctions on BoxerTableInterceptor {}
+mixin BoxerDeleteFunctions on BoxerTableInterceptor {
+  // nothing now ...
+}

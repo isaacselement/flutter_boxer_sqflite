@@ -188,26 +188,32 @@ abstract class BoxerTableBase {
 
   /// Check if current table existed
   Future<bool> isTableExisted() async {
-    return await BoxerDatabaseUtil.isTableExistedRaw(executor, tableName);
+    return await BoxerDatabaseUtil.isTableExisted(executor, tableName);
+  }
+
+  /// Reset auto increment ID.
+  Future<void> resetAutoId() async {
+    return await BoxerDatabaseUtil.resetAutoId(executor, tableName: tableName);
   }
 
   /// Number of rows in current table, null if result mismatch
   Future<int?> selectCount({String? where, List<Object?>? whereArgs}) async {
-    return await BoxerDatabaseUtil.selectCountRaw(executor, tableName, where: where, whereArgs: whereArgs);
+    return await BoxerDatabaseUtil.selectCount(executor, tableName, where: where, whereArgs: whereArgs);
   }
 
   /// Select Max of column value
-  Future<Object?> selectMax(String column) async {
-    return await BoxerDatabaseUtil.selectMaxRaw(executor, tableName, column);
+  Future<Object?> selectMax(String column, {String? where, List<Object?>? whereArgs}) async {
+    return await BoxerDatabaseUtil.selectMax(executor, tableName, column, where: where, whereArgs: whereArgs);
   }
 
   /// Select Min of column value
-  Future<Object?> selectMin(String column) async {
-    return await BoxerDatabaseUtil.selectMinRaw(executor, tableName, column);
+  Future<Object?> selectMin(String column, {String? where, List<Object?>? whereArgs}) async {
+    return await BoxerDatabaseUtil.selectMin(executor, tableName, column, where: where, whereArgs: whereArgs);
   }
 
-  /// Select Min of column value
-  Future<void> resetAutoId() async {
-    return await BoxerDatabaseUtil.resetAutoIdRaw(executor, tableName: tableName);
+  /// Select SQL
+  Future<Object?> select(List<String> columns, {String? where, List<Object?>? whereArgs, bool isUnique = false}) async {
+    return await BoxerDatabaseUtil.select(executor, tableName, columns,
+        where: where, whereArgs: whereArgs, isUnique: isUnique);
   }
 }

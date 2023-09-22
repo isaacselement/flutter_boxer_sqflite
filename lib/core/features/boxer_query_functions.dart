@@ -19,14 +19,17 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
     return single;
   }
 
+  // Important!!! ensure just only one result, otherwise return null (for many or zero results)
   Future<T?> one<T>({BoxerQueryOption? options, ModelTranslatorFromJson<T>? fromJson}) async {
-    return await first(options: options, fromJson: fromJson);
+    return (await list<T>(options: options, fromJson: fromJson)).singleSafe;
   }
 
+  // NOTE: options should have nonnull orderBy, now is just the first on list
   Future<T?> first<T>({BoxerQueryOption? options, ModelTranslatorFromJson<T>? fromJson}) async {
     return (await list<T>(options: options, fromJson: fromJson)).firstSafe;
   }
 
+  // NOTE: options should have nonnull orderBy, now is just the last on list
   Future<T?> last<T>({BoxerQueryOption? options, ModelTranslatorFromJson<T>? fromJson}) async {
     return (await list<T>(options: options, fromJson: fromJson)).lastSafe;
   }
@@ -53,18 +56,25 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
 
       /// if T is bool type, cast it to bool
       if (T == bool) {
-        return list.map((e) {
-          if (e is bool) {
-            return e;
-          } else {
-            String? v = e?.toString().toLowerCase();
-            return v == '1' || v == 'true' || v == 'yes';
-          }
-        }).toList() as List<T?>;
+        results = list.map(BoxerQueryFunctions.toBool).toList() as List<T?>;
+      } else {
+        results = List<T?>.from(list);
       }
-      return List<T?>.from(list);
     }
     return results;
+  }
+
+  static bool toBool(dynamic e) {
+    if (e == null) {
+      return false;
+    } else if (e is bool) {
+      return e;
+    } else if (e is num) {
+      return e == 1;
+    } else {
+      String? v = e?.toString().toLowerCase();
+      return v == "1" || v == "true" || v == "yes";
+    }
   }
 
   /// translate model based on a Json-Object Map, [fromJson] indicate that how-to translate Map to model T object
@@ -91,18 +101,18 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
       try {
         result = string != null && string.isNotEmpty ? (json.decode(string) as T) : null;
       } catch (e, s) {
-        BoxerLogger.e(null, '❗️❗️❗️ERROR: query as json decode error: $e, $s');
+        BoxerLogger.e(null, "❗️❗️❗️ERROR: query as json decode error: $e, $s");
         // rethrow;
       }
       if (result != null) {
         return result;
       }
       String type = T.toString();
-      bool isNullable = type.endsWith('?');
+      bool isNullable = type.endsWith("?");
       if (isNullable) {
         return null as T;
       }
-      bool isList = type.contains('List');
+      bool isList = type.contains("List");
       return (isList ? [] : {}) as T;
     }).toList();
   }

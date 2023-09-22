@@ -14,7 +14,7 @@ mixin BoxerInsertFunctions on BoxerTableInterceptor {
 
   Future<List<int>?> mInserts<T>(List<T> items, {WriteTranslator<T>? translator}) async {
     if ((await insertionsBreakHandler?.call()) == true) {
-      BoxerLogger.d(null, 'Insert $tableName bulk items broken, cause the [insertionsBreakHandler] return true!');
+      BoxerLogger.d(null, "Insert $tableName bulk items broken, cause the [insertionsBreakHandler] return true!");
       return null;
     }
 
@@ -26,7 +26,7 @@ mixin BoxerInsertFunctions on BoxerTableInterceptor {
         insertedIds.add(identifier);
       }
     }
-    BoxerLogger.d(null, 'Inserted items ids is: $insertedIds');
+    BoxerLogger.d(null, "Inserted items ids is: $insertedIds");
     return insertedIds;
   }
 
@@ -48,7 +48,7 @@ mixin BoxerInsertFunctions on BoxerTableInterceptor {
 
   Future<int> mInsert<T>(T? item, {WriteTranslator<T>? translator}) async {
     Map<String, Object?>? map = translate2TableMap(item, translator: translator);
-    assert(map != null, 'Values(${item.runtimeType}) that inserting to table should be a map.');
+    assert(map != null, "Values(${item.runtimeType}) that inserting to table should be a map.");
     if (map == null) return -1;
     return await insert(map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
