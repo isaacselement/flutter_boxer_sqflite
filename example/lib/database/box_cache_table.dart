@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
+import 'package:synchronized_call/synchronized_call.dart';
 
 class BoxCacheTable extends BoxerTableTranslator {
   static const String TAG = 'BoxCacheTable';
@@ -234,12 +235,11 @@ class BoxCacheTable extends BoxerTableTranslator {
     bool isReThrow = false,
   }) async {
     try {
-      return await mInsert(value, translator: (e) {
-        return {
-          if (type != null) BoxCacheTable.kCOLUMN_ITEM_TYPE: type,
-          if (itemId != null) BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
-        };
-      });
+      return await mInsert<dynamic>(value,
+          translator: (e) => {
+                if (type != null) BoxCacheTable.kCOLUMN_ITEM_TYPE: type,
+                if (itemId != null) BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
+              });
     } catch (e, s) {
       if (isReThrow) rethrow;
       BoxerLogger.e(TAG, '$tableName method [add] error: $e, $s');
@@ -265,6 +265,16 @@ class BoxCacheTable extends BoxerTableTranslator {
     return 0;
   }
 
+  Future<bool> exist({
+    int? id,
+    String? type,
+    String? itemId,
+    BoxerQueryOption? options,
+    bool isReThrow = false,
+  }) async {
+    return (await get<dynamic>(id: id, type: type, itemId: itemId, options: options, isReThrow: isReThrow)) != null;
+  }
+
   Future<T?> get<T>({
     int? id,
     String? type,
@@ -285,7 +295,7 @@ class BoxCacheTable extends BoxerTableTranslator {
   }
 
   /// unlike [reset] method
-  /// [set]/[modify] method just update the [value] for specified [id]/[type]/[itemId] without [remove]
+  /// [set] method just update/add(if not existed) the [value] for specified [id]&[type]&[itemId] without [remove]
   Future<int> set({
     int? id,
     String? type,
@@ -294,9 +304,26 @@ class BoxCacheTable extends BoxerTableTranslator {
     BoxerQueryOption? options,
     bool isReThrow = false,
   }) async {
+    /// 1. if [id] == null && [itemId] != null, we will insert a new one if corresponding record not existed
+    if (id == null && itemId != null) {
+      if (!(await exist(type: type, itemId: itemId, options: options, isReThrow: isReThrow))) {
+        Future<int> doAddIfNotExisted() async {
+          if ((await exist(type: type, itemId: itemId, options: options, isReThrow: isReThrow))) return -1;
+          return await add(type: type, itemId: itemId, value: value, isReThrow: isReThrow);
+        }
+
+        // prohibit adding so many same [itemId] records when multi async [add] calls at same time
+        int insertedId = await CallLock.id('$type-$itemId').call<int>(() async => await doAddIfNotExisted());
+        // if inserted successfully, just like the [modify] method return the inserted count 1.
+        if (insertedId != -1) return 1;
+      }
+    }
+
+    /// 2. just modify the existed record
     return await modify(id: id, type: type, itemId: itemId, value: value, options: options, isReThrow: isReThrow);
   }
 
+  /// [modify] method just update the [value] for specified [id]&[type]&[itemId] existed item
   Future<int> modify({
     int? id,
     String? type,
@@ -316,8 +343,8 @@ class BoxCacheTable extends BoxerTableTranslator {
     return 0;
   }
 
-  /// unlike [set]/[modify] method
-  /// [reset] is using BATCH mode, [remove] the same [id]/[itemId]/[type], then [add] a new one
+  /// different from [add]/[set]/[modify] methods
+  /// [reset] method is using BATCH mode, [remove] the same [id]&[type]&[itemId] item first, then [add] a new one
   Future<void> reset({
     int? id,
     String? type,

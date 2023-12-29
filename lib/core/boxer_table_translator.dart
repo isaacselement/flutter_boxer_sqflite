@@ -179,7 +179,7 @@ abstract class BoxerTableTranslator extends BoxerTableInterceptor
   }
 
   /// Using the lock, for making `Clear and Insert` jobs execute in serial queue
-  CallLock mOperationsSyncLock = CallLock.create();
+  CallLock callLock4ResetItems = CallLock.create();
 
   /// Do clear & insert operation. [option] for clear filter, [translator] for insertion transform
   Future<List<Object?>?> resetWithItems<T>(
@@ -190,7 +190,7 @@ abstract class BoxerTableTranslator extends BoxerTableInterceptor
   }) async {
     /// Using a sync lock
     if (syncType == BatchSyncType.LOCK) {
-      return await mOperationsSyncLock.call<List<int>?>(() async {
+      return await callLock4ResetItems.call<List<int>?>(() async {
         await delete(options: option);
         return await mInserts<T>(items, translator: translator);
       });

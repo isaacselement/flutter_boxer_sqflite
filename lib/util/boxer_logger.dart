@@ -1,6 +1,8 @@
 typedef BoxerFatalError = void Function(/* Object */ dynamic exception, /* StackTrace? */ dynamic stack);
 
 class BoxerLogger {
+  static const String TAG = 'BoxerLogger';
+
   /// verbose log
   static void v(String? tag, String message) {
     _log(0, tag, message);
@@ -35,7 +37,7 @@ class BoxerLogger {
   static void Function(int level, String tag, String message)? logger;
 
   static void _log(int level, String? tag, String message) {
-    tag ??= "BoxerLogger";
+    tag ??= TAG;
     if (logger != null) {
       logger!(level, tag, message);
       return;

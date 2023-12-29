@@ -197,7 +197,10 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
               CupertinoButton(
                 child: Text('Add & Get & Set & Modify & Remove ', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
+                  // common test item type
                   String itemType = 'IS_READ';
+
+                  // func first item
                   Future<String> getFirstItemId({String type = 'IS_READ'}) async {
                     List<Map<String, Object?>> results = await mTable.query(
                       options: BoxerQueryOption.eM(map: {BoxCacheTable.kCOLUMN_ITEM_TYPE: type}),
@@ -210,6 +213,20 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                   }
 
                   List<Map> sheet = [
+                    action(Icons.one_k, '[set] multi at same time', (Map action) async {
+                      String sameItemId = StringsUtils.fakeUUID();
+                      for (int i = 0; i < 10; i++) {
+                        mTable.set(type: itemType, itemId: sameItemId, value: "$i").then((value) {
+                          BoxerLogger.d('ToastHelper', '>>>>> set for new record, affect row count is: $value');
+                        });
+                      }
+                    }),
+                    action(Icons.one_k, '[exist] method', (Map action) async {
+                      String _itemId = await getFirstItemId();
+                      bool isExisted = await mTable.exist(type: itemType, itemId: _itemId);
+                      bool fake = await mTable.exist(type: itemType, itemId: StringsUtils.fakeUUID());
+                      ToastHelper.show('Is existed? $isExisted, fake existed? $fake');
+                    }),
                     action(Icons.one_k, '[add] method for User', (Map action) async {
                       int identifier = await mTable.add(type: itemType, itemId: StringsUtils.fakeUUID(), value: "1");
                       ToastHelper.show('[add] value: $identifier');

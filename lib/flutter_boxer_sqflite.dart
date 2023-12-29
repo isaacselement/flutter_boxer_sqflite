@@ -8,6 +8,7 @@ export 'package:flutter_boxer_sqflite/util/boxer_database_util.dart';
 export 'package:flutter_boxer_sqflite/util/boxer_extensions.dart';
 export 'package:flutter_boxer_sqflite/util/boxer_loader.dart';
 export 'package:flutter_boxer_sqflite/util/boxer_logger.dart';
+export 'package:flutter_boxer_sqflite/util/boxer_utils.dart';
 export 'package:sqflite/sqflite.dart';
 
 /// For windows & linux

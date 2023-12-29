@@ -37,15 +37,15 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
   Future<List<T?>> list<T>({BoxerQueryOption? options, ModelTranslatorFromJson<T>? fromJson}) async {
     List<T?> results;
 
-    if (T == int || T == double) {
+    if (BoxerUtils.isTypeSimilar<int, T>() || BoxerUtils.isTypeSimilar<double, T>()) {
       results = List<T?>.from(await mQueryAsNum(options: options));
-    } else if (T == num) {
+    } else if (BoxerUtils.isTypeSimilar<num, T>()) {
       results = await mQueryAsNum(options: options) as List<T?>;
-    } else if (T == String) {
+    } else if (BoxerUtils.isTypeSimilar<String, T>()) {
       results = await mQueryAsStrings(options: options) as List<T?>;
-    } else if (T == Map) {
+    } else if (BoxerUtils.isTypeSimilar<Map, T>()) {
       results = await mQueryAsMap(options: options) as List<T?>;
-    } else if (T == List) {
+    } else if (BoxerUtils.isTypeSimilar<List, T>()) {
       results = await mQueryAsList(options: options) as List<T?>;
     } else {
       /// if has model translator already ?
@@ -55,7 +55,7 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
       List<Object?> list = await mQuery(options: options);
 
       /// if T is bool type, cast it to bool
-      if (T == bool) {
+      if (BoxerUtils.isTypeSimilar<bool, T>()) {
         results = list.map(BoxerQueryFunctions.toBool).toList() as List<T?>;
       } else {
         results = List<T?>.from(list);
@@ -96,6 +96,12 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
 
   /// translate it to Json-Object (Map or List)
   Future<List<T>> mQueryAsJson<T>({BoxerQueryOption? options}) async {
+    bool isMapType = BoxerUtils.isTypeSimilar<Map, T>();
+    bool isListType = BoxerUtils.isTypeSimilar<List, T>();
+    bool isJsonType = isMapType || isListType;
+    if (!isJsonType) {
+      throw ArgumentError("FATAL: Argument type error, T must be Map or List.");
+    }
     return (await mQueryAsStrings(options: options)).map<T>((string) {
       T? result;
       try {
@@ -107,13 +113,10 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
       if (result != null) {
         return result;
       }
-      String type = T.toString();
-      bool isNullable = type.endsWith("?");
-      if (isNullable) {
+      if (null is T) {
         return null as T;
       }
-      bool isList = type.contains("List");
-      return (isList ? [] : {}) as T;
+      return (isListType ? [] : {}) as T;
     }).toList();
   }
 
