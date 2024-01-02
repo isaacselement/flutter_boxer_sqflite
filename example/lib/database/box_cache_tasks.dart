@@ -1,65 +1,165 @@
 import 'dart:async';
 
-import 'package:example/database/box_cache_logger.dart';
 import 'package:example/database/box_cache_table.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:synchronized_call/synchronized_call.dart';
 
-class BoxUniqueRow {
-  final String type;
-  final String id;
+enum BoxTaskKind { SYNC, ASYNC }
 
-  BoxUniqueRow({required this.type, required this.id});
+enum BoxTaskStatus { PENDING, EXECUTING }
+
+class BoxCacheTaskTable extends BoxCacheTable {
+  BoxCacheTaskTable({required String tableName}) : super(tableName: tableName);
+
+  static const String kCOLUMN_KIND = 'KIND'; // 代表任务是同步异步, 0: sync, 1: async
+  static const String kCOLUMN_STATUS = 'STATUS'; // 代表任务状态, 0: pending, 1: executing
+  static const String kCOLUMN_PRIORITY = 'PRIORITY'; // 代表任务优先级, 数值越大优先级越高, 默认为0
 
   @override
-  String toString() => '[$type: $id]';
+  String? get createTableSpecification {
+    String? sql = super.createTableSpecification;
+    if (sql == null) return null;
+    List<String> strings = sql.split(BoxerTableBase.SEPARATOR);
+
+    /// insert tow extra columns
+    String? createSql = strings.firstSafe;
+    List<String>? columns = createSql?.split(',');
+    if ((columns != null) && (columns.length > 5)) {
+      columns.insert(4, '${BoxCacheTaskTable.kCOLUMN_KIND} INTEGER NOT NULL DEFAULT 0');
+      columns.insert(5, '${BoxCacheTaskTable.kCOLUMN_STATUS} INTEGER NOT NULL DEFAULT 0');
+      columns.insert(6, '${BoxCacheTaskTable.kCOLUMN_PRIORITY} INTEGER NOT NULL DEFAULT 0');
+      createSql = columns.join(',');
+      strings.removeAt(0);
+      strings.insert(0, createSql);
+      sql = strings.join(BoxerTableBase.SEPARATOR);
+    }
+    return sql;
+  }
+}
+
+class BoxUniqueRow {
+  final String type, id;
+  final BoxTaskKind kind;
+
+  BoxUniqueRow({required this.type, required this.id, required this.kind});
+
+  @override
+  String toString() => '($type: $id${kind == BoxTaskKind.ASYNC ? ' A' : ''})';
 }
 
 class BoxTask extends BoxUniqueRow {
   final Map data;
 
-  BoxTask({required String type, required String id, required this.data}) : super(type: type, id: id);
+  BoxTask({required String type, required String id, bool? isAsync, required this.data})
+      : super(type: type, id: id, kind: isAsync == true ? BoxTaskKind.ASYNC : BoxTaskKind.SYNC);
 
-  Map toJson() => {'type': type, 'id': id, 'data': data};
+  Map toJson() => {'type': type, 'id': id, 'kind': kind.index, 'data': data};
 
-  factory BoxTask.fromJson(Map json) => BoxTask(type: json['type'], id: json['id'], data: json['data']);
+  factory BoxTask.fromJson(Map e) => BoxTask(
+      type: e['type'] ?? '', id: e['id'] ?? '', isAsync: e['kind'] == BoxTaskKind.ASYNC.index, data: e['data'] ?? {});
 }
 
 class BoxTaskFeign {
-  final int time; // the task added time
   final BoxTask task;
 
-  int count; // the task execute retry count
-  int lastTime = 0; // the task last execute time
+  /// time: the task added time
+  final int time;
+
+  /// count & maxCount: task execute number/max number of retries
+  /// firstTime & lastTime: task execute first/last execute time; lastStatus: 0 not executed, 1 failed, 200 success
+  int count = 0, maxCount = 0, firstTime = 0, lastTime = 0, lastStatus = 0;
 
   String get type => task.type;
 
   String get id => task.id;
 
-  BoxTaskFeign({required this.task, required this.time, required this.count, required this.lastTime});
+  BoxTaskKind get kind => task.kind;
 
-  Map toJson() => {'task': task.toJson(), 'time': time, 'count': count, 'lastTime': lastTime};
+  BoxTaskFeign({required this.task, required this.time});
 
-  factory BoxTaskFeign.fromJson(Map e) =>
-      BoxTaskFeign(task: BoxTask.fromJson(e['task']), time: e['time'], count: e['count'], lastTime: e['lastTime']);
+  Map toJson() => {
+        'task': task.toJson(),
+        'time': time,
+        'count': count,
+        'maxCount': maxCount,
+        'firstTime': firstTime,
+        'lastTime': lastTime,
+        'lastStatus': lastStatus,
+      };
 
-  @override
-  String toString() => '($type: $id)';
+  factory BoxTaskFeign.fromJson(Map e) => BoxTaskFeign(task: BoxTask.fromJson(e['task']), time: e['time'] ?? nowMillis)
+        ..count = e['count'] ?? 0
+        ..maxCount = e['maxCount'] ?? 0
+        ..firstTime = e['firstTime'] ?? 0
+        ..lastTime = e['lastTime'] ?? 0
+        ..lastStatus = e['lastStatus'] ?? 0
+      //
+      ;
+
+  factory BoxTaskFeign.create(BoxTask task, {int maxCount = 0}) =>
+      BoxTaskFeign(task: task, time: nowMillis)..maxCount = maxCount;
 
   bool isSame(BoxTaskFeign? other) => type == other?.type && id == other?.id && time == other?.time;
 
-  factory BoxTaskFeign.create(BoxTask task) =>
-      BoxTaskFeign(time: DateTime.now().millisecondsSinceEpoch, task: task, count: 0, lastTime: 0);
+  static int get nowMillis => DateTime.now().millisecondsSinceEpoch;
 
-  // status indicate that executed and if execute success or not
-  bool? executedStatus;
+  @override
+  String toString() => '$task'.replaceAll('(', '[').replaceAll(')', ']');
+
+  /// execute result
+  BoxTaskResult? result;
 }
 
-typedef BoxTaskIfExecute = FutureOr<bool> Function(BoxTaskFeign current, BoxTaskFeign? previous);
+class BoxTaskResult {
+  final bool isSuccess;
+  final Object? data;
+  final dynamic error, stack;
+
+  BoxTaskResult(this.isSuccess, this.data, [this.error, this.stack]);
+}
+
+abstract class BoxTaskInterceptor {
+  void loopBegin(List<BoxUniqueRow> loopTasks, FutureQueue futureQueue);
+
+  void loopEnd(dynamic e, dynamic s);
+
+  Future<bool> taskBegin(BoxTaskFeign task);
+
+  void taskEnd(BoxTaskFeign task);
+
+  /// Util methods
+  static void callLoopBegin(List<BoxTaskInterceptor> list, List<BoxUniqueRow> loopTasks, FutureQueue futureQueue) {
+    for (int i = 0; i < list.length; i++) {
+      list[i].loopBegin(loopTasks, futureQueue);
+    }
+  }
+
+  static void callLoopEnd(List<BoxTaskInterceptor> list, dynamic e, dynamic s) {
+    for (int i = 0; i < list.length; i++) {
+      list[i].loopEnd(e, s);
+    }
+  }
+
+  static Future<bool> callPerBegin(List<BoxTaskInterceptor> list, BoxTaskFeign current) async {
+    // return false if one of interceptors want to skip a task
+    for (int i = 0; i < list.length; i++) {
+      if ((await list[i].taskBegin(current)) == false) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static void callPerEnd(List<BoxTaskInterceptor> list, BoxTaskFeign task) {
+    for (int i = 0; i < list.length; i++) {
+      list[i].taskEnd(task);
+    }
+  }
+}
 
 /// Cache tasks base on [BoxCacheTable]
 class BoxCacheTasks {
-  static final String TAG = 'BoxCacheTasks';
+  static const String TAG = 'BoxCacheTasks';
 
   static BoxCacheTasks? _instance;
 
@@ -71,54 +171,99 @@ class BoxCacheTasks {
   BoxCacheTable get mTable => table;
 
   /// Required, tell tasks looper how to do a task
-  late FutureOr<bool> Function(BoxTaskFeign task) doTask;
+  late FutureOr<BoxTaskResult> Function(BoxTaskFeign task) doTask;
 
-  /// Optional, tell tasks looper if/whether to execute/do the task or not
-  List<BoxTaskIfExecute>? shouldExecutors;
+  /// Interceptors. Tell tasks looper if/whether to execute/do the next/current task or not
+  List<BoxTaskInterceptor> interceptors = [];
 
-  void putIfExecutor(BoxTaskIfExecute executor) => (shouldExecutors ??= []).add(executor);
+  void addInterceptor(BoxTaskInterceptor interceptor) => interceptors.add(interceptor);
 
-  void removeIfExecutor(BoxTaskIfExecute executor) => shouldExecutors?.remove(executor);
+  void removeInterceptor(BoxTaskInterceptor interceptor) => interceptors.remove(interceptor);
 
-  /// Optional, assign the properties [logger/fatalLogger/maker] to logger, if you are interested in log/fatal error/mark
-  BoxCacheLogger logger = BoxCacheLogger();
+  void _doInterceptorsOnLoopBegin(List<BoxUniqueRow> loopTasks, FutureQueue futureQueue) {
+    BoxTaskInterceptor.callLoopBegin(interceptors, loopTasks, futureQueue);
+  }
+
+  void _doInterceptorsOnLoopEnd(dynamic e, dynamic s) {
+    BoxTaskInterceptor.callLoopEnd(interceptors, e, s);
+  }
+
+  Future<bool> _doInterceptorsOnPerBegin(BoxTaskFeign current) async {
+    return await BoxTaskInterceptor.callPerBegin(interceptors, current);
+  }
+
+  void _doInterceptorsOnPerEnd(BoxTaskFeign? task) {
+    if (task == null) return;
+    BoxTaskInterceptor.callPerEnd(interceptors, task);
+  }
+
+  /// Optional, assign the properties [logger/fatalLogger/maker] to this logger instance
+  BoxerLoggerInstance logger = BoxerLogger.instance; // BoxerLoggerInstance();
 
   /// Optional, max execute task retry count
   int kRetryLimitCount = 10;
 
-  /// same [taskType] and [taskId] add multiple times is allowed, cache will just keep the newest one
+  /// Call init() after property `table` has been assigned
+  bool _isInited = false;
+
+  void init([VoidCallbackFunc? onInited]) {
+    if (_isInited) return;
+    _isInited = true;
+    onInited?.call();
+    mTable.setModelTranslator<BoxTaskFeign>(
+      (Map e) => BoxTaskFeign.fromJson(e),
+      (BoxTaskFeign e) => e.toJson(),
+      (BoxTaskFeign e) => {BoxCacheTable.kCOLUMN_ITEM_TYPE: e.type, BoxCacheTable.kCOLUMN_ITEM_ID: e.id},
+    );
+  }
+
+  void start() {
+    CallLock.got<InclusiveLock>(mTable.tableName).call(__start__);
+  }
+
+  void resume() {
+    isManuallyStop = false;
+    start();
+  }
+
+  void stop() {
+    autoStartInterval = 0;
+    isManuallyStop = true;
+    doingTasks?.clear();
+    doingTasks = null;
+  }
+
   /// 添加一个任务
-  Future<void> addTask(BoxTask task) async {
-    /// reset is -> remove then add
-    BoxTaskFeign feign = BoxTaskFeign.create(task);
+  /// same [taskType] and [taskId] add multiple times is allowed, cache will just keep the newest one
+  Future<void> addTask(BoxTask task, {int? priority, int? maxCount}) async {
+    BoxTaskFeign feign = BoxTaskFeign.create(task, maxCount: maxCount ?? kRetryLimitCount);
+    String itemId = feign.id; // same as task.id
+    String itemType = feign.type; // same as task.type
+    /// reset here, as is known to all: do remove then do add
     await mTable.reset(
-      type: feign.type,
-      itemId: feign.id,
+      type: itemType,
+      itemId: itemId,
       value: feign.toJson(),
       isReThrow: true,
+      // add two more column 'kind' & 'priority' and their values
+      translator: (e, s) {
+        return {
+          BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
+          BoxCacheTable.kCOLUMN_ITEM_TYPE: itemType,
+          BoxCacheTaskTable.kCOLUMN_KIND: task.kind.index,
+          BoxCacheTaskTable.kCOLUMN_PRIORITY: priority ?? 0,
+        };
+      },
     );
 
-    /// start tasks looper
-    CallLock.got<InclusiveLock>(mTable.tableName).call(start);
+    /// invoke start anyway when add a new task
+    autoStartInterval = 0;
+    start();
   }
 
-  /// 更新一个任务
-  Future<int> updateTask(BoxTaskFeign feign) async {
-    return await mTable.modify(
-      type: feign.type,
-      itemId: feign.id,
-      value: feign.toJson(),
-      isReThrow: true,
-    );
-  }
-
-  /// 删除一个任务
-  Future<int> removeTask({required String taskType, required String taskId}) async {
-    return await mTable.remove(
-      type: taskType,
-      itemId: taskId,
-      isReThrow: true,
-    );
+  /// 任务是否存在
+  Future<bool> isTaskExisted({required String taskType, required String taskId}) async {
+    return (await getTask(taskType: taskType, taskId: taskId)) != null;
   }
 
   /// 获取一个任务
@@ -133,172 +278,252 @@ class BoxCacheTasks {
 
   /// 获取所有任务
   Future<List<BoxUniqueRow>> getAllTasks() async {
-    BoxerQueryOption op = BoxerQueryOption();
-    op.orderBy = '${BoxCacheTable.kCOLUMN_UPDATE_TIME} ASC, ${BoxCacheTable.kCOLUMN_CREATE_TIME} DESC';
-    // 为了省些内存，不把 data 全选择出来了, 创建类 [BoxUniqueRow] 出来只存储 [type] 和 [id]
-    op.columns = [BoxCacheTable.kCOLUMN_ITEM_TYPE, BoxCacheTable.kCOLUMN_ITEM_ID];
+    BoxerQueryOption op =
+        BoxerQueryOption.e(column: BoxCacheTaskTable.kCOLUMN_STATUS, value: BoxTaskStatus.PENDING.index);
+    String orderBy = ''
+        '${BoxCacheTaskTable.kCOLUMN_PRIORITY} DESC,' // 优先级越高越先执行
+        '${BoxCacheTable.kCOLUMN_UPDATE_TIME} ASC,' // 同等优先级，则越早更新过/从没更新过的 越先执行
+        '${BoxCacheTable.kCOLUMN_CREATE_TIME} DESC,' // 同等优先级 及 从没更新过的[或更新时间一样(极少)]，则最新创建的 越先执行
+        '';
+    op.orderBy = orderBy.trim().removeEndWith(',');
+    // 为了省些内存，不把 数据 全选择出来了, 创建类 [BoxUniqueRow] 出来只存储 [type] 和 [id]
+    op.columns = [BoxCacheTable.kCOLUMN_ITEM_TYPE, BoxCacheTable.kCOLUMN_ITEM_ID, BoxCacheTaskTable.kCOLUMN_KIND];
     // 自己转化所有'外层'数据的，用 [mQueryTo] 方法
     List<BoxUniqueRow?> list = await mTable.mQueryTo<BoxUniqueRow?>(
       options: op,
       translator: (Map<String, Object?> e) {
         String? type = e[BoxCacheTable.kCOLUMN_ITEM_TYPE]?.toString();
         String? id = e[BoxCacheTable.kCOLUMN_ITEM_ID]?.toString();
+        int? kind = int.tryParse(e[BoxCacheTaskTable.kCOLUMN_KIND]?.toString() ?? '');
         if (type == null || id == null) return null;
-        return BoxUniqueRow(type: type, id: id);
+        return BoxUniqueRow(type: type, id: id, kind: BoxTaskKind.values[kind ?? 0]);
       },
-      // isReThrow: true,
     );
-    List<BoxUniqueRow> result = List<BoxUniqueRow>.from(list.where((e) => e != null).toList());
-    return result;
+    List<BoxUniqueRow> results = List<BoxUniqueRow>.from(list.where((e) => e != null).toList());
+    // 把异步任务的放到前面，则会一次性执行异步任务，然后同步任务一个等一个完成后执行
+    results.sort((a, b) => b.kind.index.compareTo(a.kind.index));
+    return results;
   }
 
-  /// 任务个数
-  Future<int> allTasksCount() async {
-    int? count = await mTable.count(mTable.optionsWithUserRoleId(BoxerQueryOption()));
-    return count ?? 0;
+  /// 更新一个任务
+  Future<int> updateTask(BoxTaskFeign feign) async {
+    return await mTable.modify(type: feign.type, itemId: feign.id, value: feign.toJson(), isReThrow: true);
   }
 
-  /// 是否有任务
-  Future<bool> isHaveTasks() async {
-    return (await allTasksCount()) > 0;
+  /// 删除一个任务
+  Future<int> removeTask({required String taskType, required String taskId}) async {
+    return await mTable.remove(type: taskType, itemId: taskId, isReThrow: true);
   }
 
-  /// If tasks looper is started
+  /// Auto trigger [start] scenario count, also use as recursive throttle interval
+  int autoStartInterval = 0;
+
+  /// Start the tasks looper
+  List<BoxUniqueRow>? doingTasks; // for control the local looping tasks variable
+  bool isManuallyStop = false; // flag for using in stop() & resume() method
   bool isStarted = false;
 
-  Future<void> start() async {
+  Future<void> __start__() async {
+    if (isManuallyStop) {
+      logger.i(TAG, "💚 Tasks job has been manually stopped.");
+      return;
+    }
     if (isStarted) return;
+    isStarted = true;
+
+    dynamic error, stack;
+    FutureQueue? futuresQueue;
 
     try {
-      isStarted = true;
-      int count = await allTasksCount();
-      logger.i(TAG, "❗️--- TASKS START: $count ---");
-      if (count <= 0) {
-        return;
-      }
-      if (count > 50) {
-        logger.mark(tag: '__tasks_had_accumulated_a_lot__', object: count);
-      }
-
       /// 事先拿出任务列表，避免在执行过程中有新任务插入，最近更新过的放在列表更后，按更新时间ASC排序
       List<BoxUniqueRow> tasks = await getAllTasks();
+      doingTasks = tasks;
+      logger.i(TAG, "❎ --- TASKS START: ${tasks.length} ---");
 
-      BoxTaskFeign? current;
-      BoxTaskFeign? previous;
+      futuresQueue = FutureQueue();
+      _doInterceptorsOnLoopBegin(tasks, futuresQueue);
+      int count = tasks.length;
 
-      /// important! should check list length every time, because tasks will be removed during the loop
-      while (tasks.length != 0) {
-        logger.i(TAG, "Start tasks remain: ${tasks.length}");
-        BoxUniqueRow row = tasks.removeAt(0);
+      /// Return if tasks is empty
+      if (count <= 0) {
+        autoStartInterval = 0;
+        return;
+      }
 
-        /// Get out the full task info
-        current = await getTask(taskType: row.type, taskId: row.id);
-        if (current == null) {
-          logger.i(TAG, "Task[$row] has been deleted, continue.");
-          continue;
+      /// 做完一轮任务后，再次检查是否有新任务插入/或有任务失败了，有则再次执行一轮任务
+      futuresQueue.addListener(() async {
+        autoStartInterval++;
+        logger.i(TAG, "🟢 All done, recursive [start] checking has new/failed task or not? $autoStartInterval");
+        if (autoStartInterval > 60) {
+          logger.mark(tag: '__tasks_recursive_a_lot__', object: autoStartInterval);
+          logger.w(TAG, "Recursive start tasks a lot: $autoStartInterval");
         }
+        await Future.delayed(Duration(seconds: autoStartInterval));
 
-        /// check need to do or not, also you can wait an interval time in it.
-        bool isExecuteTask = await shouldExecute(current, previous);
-        if (isExecuteTask == false) {
-          logger.i(TAG, "No need to do a task $current by check false, so continue...");
-          continue;
+        /// invoke start again
+        start();
+      });
+
+      if (count > 50) {
+        logger.mark(tag: '__tasks_accumulated_a_lot__', object: count);
+        logger.w(TAG, "Too many tasks have been accumulated: $count");
+      }
+
+      /// important! check the length every time, cause tasks will be removed during the loop or [stop] by caller
+      while (tasks.isNotEmpty && doingTasks != null) {
+        try {
+          logger.i(TAG, "Start, left in the task queue count is: ${tasks.length}");
+          BoxUniqueRow row = tasks.removeAt(0);
+
+          /// execute task
+          Future<void> future = execute(row);
+          futuresQueue.enqueue(future);
+
+          /// Wait the sync task done, all async tasks all were sorted in advance and had been invoked
+          if (row.kind == BoxTaskKind.SYNC) {
+            await future;
+          }
+        } catch (e, s) {
+          logger.e(TAG, "Do a tasks error: $e, $s");
+          logger.reportFatal(e, s);
         }
-        bool isSuccess = await execute(current);
-        previous = current;
-        previous.executedStatus = isSuccess;
-        logger.i(TAG, "Done a task $current ${isSuccess ? 'success' : 'failed'}");
       }
     } catch (e, s) {
+      error = e;
+      stack = s;
       logger.e(TAG, "Start tasks error: $e, $s");
-      logger.fatal(e, s);
+      logger.reportFatal(e, s);
     } finally {
       isStarted = false;
-      logger.i(TAG, "❗️--- TASKS DONE ---");
+      logger.i(TAG, "✅ --- TASKS DONE ---");
+      futuresQueue?.wait();
+
+      _doInterceptorsOnLoopEnd(error, stack);
     }
   }
 
-  Future<bool> shouldExecute(BoxTaskFeign current, BoxTaskFeign? previous) async {
-    List<BoxTaskIfExecute>? list = shouldExecutors;
-    bool result = true;
-    if (list != null) {
-      for (int i = 0; i < list.length; i++) {
-        if ((result = await (list[i])(current, previous)) == false) {
-          break;
-        }
-      }
-    }
-    return result;
-  }
+  /// execute one task
+  Future<void> execute(BoxUniqueRow one) async {
+    String taskType = one.type;
+    String taskId = one.id;
 
-  Future<bool> execute(BoxTaskFeign feign) async {
-    String taskType = feign.type;
-    String taskId = feign.id;
-
-    /// 因为有延时或缓存, 做任务前, 先检查确保一下任务还在任务表不 以及 为了拿出其最新任务数据
+    /// 因为缓存或延时, 做任务前先检查确保一下此任务还在任务表不, 为了拿出其最新任务数据 又或者 为了确保期间此任务没有被移除
     BoxTaskFeign? f = await getTask(taskType: taskType, taskId: taskId);
     if (f == null) {
-      logger.i(TAG, "Task[$taskType: $taskId] has been deleted, step out.");
-      return false;
+      logger.i(TAG, "🚫Abort execute operation, task $one has been deleted, step out.");
+      return;
     }
-    feign = f;
+    if ((await getTaskStatus(f)) == BoxTaskStatus.EXECUTING) {
+      logger.i(TAG, "🚫Abort execute operation, task $f is executing, step out.");
+      return;
+    }
 
-    Future<void> doRemoveTask(bool isTaskSuccess) async {
-      logger.i(TAG, "Removing task[$taskType: $taskId], is task success: $isTaskSuccess");
+    /// invoke interceptors for checking do next task or not, also you can wait an interval time in it.
+    if (await _doInterceptorsOnPerBegin(f) == false) {
+      logger.i(TAG, "No need to do a task $f by check false, so continue...");
+      return;
+    }
+
+    BoxTaskFeign feign = f;
+
+    /// Update to task to db
+    await updateTaskStatus(feign, BoxTaskStatus.EXECUTING);
+
+    BoxTaskResult result;
+    try {
+      /// Call handleTask, task success or not is determined by Caller
+      result = await doTask(feign);
+    } catch (e, s) {
+      logger.e(TAG, "Caller handle task error: $e, $s");
+      result = BoxTaskResult(false, null, e, s);
+    }
+    feign.result = result;
+    bool isSuccess = result.isSuccess;
+    logger.i(TAG, "Done a task $feign ${isSuccess ? 'success' : 'failed'}");
+
+    /// Update to task to db
+    await updateTaskStatus(feign, BoxTaskStatus.PENDING);
+
+    feign.count = feign.count + 1;
+
+    /// 检查是否超出重试次数, 若超出重试次数, 则删除任务
+    int limitCount = feign.maxCount > 0 ? feign.maxCount : kRetryLimitCount;
+    bool isExceedLimit = feign.count > limitCount;
+    if (isExceedLimit) {
+      Map object = {...feign.toJson(), 'limitCount': limitCount};
+      logger.mark(tag: '__task_execute_exceeded_limit__', object: object);
+      logger.w(TAG, "Task retry count exceeded: $object");
+    }
+
+    Future<bool> doRemoveTask(BoxTaskFeign feign) async {
+      logger.i(TAG, "Removing task[$taskType: $taskId] ...");
       try {
         /// 先检查确保一下当前任务表里的任务是这次做完的任务，以免期间有新插入(一次/多次)相同任务ID的任务
         BoxTaskFeign? newest = await getTask(taskType: taskType, taskId: taskId);
 
         /// 不是同一个任务，已经有新的相同任务Type & Id的任务插入了，此时直接返回
         if (!feign.isSame(newest)) {
-          logger.i(TAG, "◉Abort remove operation, cause differ with newest task[$taskType: $taskId].");
-          return;
+          logger.i(TAG, "🚫Abort remove operation, cause differ with newest task[$taskType: $taskId].");
+          return false;
         }
       } catch (e, s) {
         logger.e(TAG, "Get task on remove phase error: $e, $s");
-        logger.fatal(e, s);
+        logger.reportFatal(e, s);
       }
 
+      bool isRemoved = false;
       try {
-        /// remove completed task from db
-        int count = await removeTask(taskType: taskType, taskId: taskId);
-        logger.i(TAG, "Remove the task[$taskType: $taskId] ($count) ${count == 1 ? 'success' : 'failed'}");
+        /// remove the completed task from db
+        int removedCount = await removeTask(taskType: taskType, taskId: taskId);
+        isRemoved = removedCount == 1;
+        logger.i(TAG, "Remove the task[$taskType: $taskId] ($removedCount) ${isRemoved ? 'success' : 'failed'}");
       } catch (e, s) {
         logger.e(TAG, "Remove task with error: $e, $s");
-        logger.fatal(e, s);
+        logger.reportFatal(e, s);
       }
+      return isRemoved;
     }
 
-    bool isSuccess = false;
     try {
-      /// Call handleTask, task success or not is determined by Caller
-      isSuccess = await doTask(feign);
-      feign.lastTime = DateTime.now().millisecondsSinceEpoch;
-    } catch (e, s) {
-      logger.e(TAG, "Caller handle task error: $e, $s");
-      logger.fatal(e, s);
-    }
-
-    if (isSuccess) {
-      await doRemoveTask(true);
-      return true;
-    }
-
-    /// 检查是否超出重试次数
-    feign.count++;
-    if (feign.count > kRetryLimitCount) {
-      /// 若超出重试次数, 则删除任务
-      await doRemoveTask(false);
-      logger.mark(tag: '__task_executed_max_count__', object: feign.toJson());
-      logger.i(TAG, "Task retry count exceeded: ${feign.toJson()}");
-    } else {
-      try {
-        await updateTask(feign);
-      } catch (e, s) {
-        logger.e(TAG, "Task update retry count error: $e, $s");
-        logger.fatal(e, s);
+      /// Remove if success and if the same task with db
+      if ((isSuccess || isExceedLimit) && (await doRemoveTask(feign))) {
+        return;
       }
+
+      /// Update to task info to db
+      feign.lastTime = DateTime.now().millisecondsSinceEpoch;
+      if (feign.firstTime == 0) feign.firstTime = feign.lastTime;
+      feign.lastStatus = isSuccess ? 200 : 1;
+      await updateTask(feign);
+    } catch (e, s) {
+      logger.e(TAG, "Task update executed info error: $e, $s");
+      logger.reportFatal(e, s);
+    } finally {
+      /// invoke interceptors for caller checking the task is removed or not
+      _doInterceptorsOnPerEnd(feign);
     }
-    return false;
+  }
+
+  /// Util methods
+  Future<void> updateTaskStatus(BoxTaskFeign feign, BoxTaskStatus status) async {
+    try {
+      BoxerQueryOption op = mTable.getOptions(type: feign.type, itemId: feign.id);
+      await mTable.setColumnValue(BoxCacheTaskTable.kCOLUMN_STATUS, status.index, options: op);
+    } catch (e, s) {
+      logger.e(TAG, "Task update status info error: $e, $s");
+      logger.reportFatal(e, s);
+    }
+  }
+
+  Future<BoxTaskStatus> getTaskStatus(BoxTaskFeign feign) async {
+    try {
+      BoxerQueryOption op = mTable.getOptions(type: feign.type, itemId: feign.id);
+      Object? index = await mTable.getColumnValue(BoxCacheTaskTable.kCOLUMN_STATUS, options: op);
+      return index == BoxTaskStatus.EXECUTING.index ? BoxTaskStatus.EXECUTING : BoxTaskStatus.PENDING;
+    } catch (e, s) {
+      logger.e(TAG, "Task get status info error: $e, $s");
+      logger.reportFatal(e, s);
+    }
+    return BoxTaskStatus.PENDING;
   }
 }

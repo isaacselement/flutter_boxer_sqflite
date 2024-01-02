@@ -49,6 +49,7 @@ class BoxerDatabase {
 
       /// For windows & linux
       if (Platform.isWindows || Platform.isLinux) {
+        // example/.dart_tool/sqflite_common_ffi/databases/~/Downloads/database.db
         path ??= "~/Downloads/";
       }
 
@@ -76,7 +77,7 @@ class BoxerDatabase {
     } catch (e, s) {
       openingCompleter?.complete(null);
       BoxerLogger.f(null, "[BoxerDatabase] - open database error: $e, $s");
-      BoxerLogger.reportFatalError(e, s);
+      BoxerLogger.reportFatal(e, s);
     }
     // so far, the same instance of properties [_database]
     return db;

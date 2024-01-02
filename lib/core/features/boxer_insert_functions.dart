@@ -32,16 +32,16 @@ mixin BoxerInsertFunctions on BoxerTableInterceptor {
 
   /// T?, ? is needed
   Future<int> mInsertModel<T>(T? model, {ModelTranslatorToJson<T>? toJson, WriteTranslator<T>? translator}) async {
-    ModelTranslatorToJson<T>? translate = BoxerTableTranslator.getModelTranslatorTo(toJson);
+    ModelTranslatorToJson<T>? translate = BoxerModelTranslator.getModelTranslatorTo(this, toJson);
     if (translate == null || model == null) return -1;
     Map<String, Object?> values = Map<String, Object?>.from(translate(model));
 
-    WriteTranslator<Map<String, Object?>>? translatorOuter;
-    Map<String, dynamic>? fields = BoxerTableTranslator.getModelIdentifyFields<T>()?.call(model);
+    WriteTranslator<Map<String, Object?>> translatorOuter;
+    Map<String, dynamic>? fields = BoxerModelTranslator.getModelIdentifyFields<T>(this)?.call(model);
     if (fields != null && fields.isNotEmpty) {
-      translatorOuter = (e) => fields..addAll(translator?.call(model) ?? {});
+      translatorOuter = (e, s) => fields..addAll(translator?.call(model, s) ?? {});
     } else {
-      translatorOuter = (e) => translator?.call(model) ?? {};
+      translatorOuter = (e, s) => translator?.call(model, s) ?? {};
     }
     return await mInsert(values, translator: translatorOuter);
   }

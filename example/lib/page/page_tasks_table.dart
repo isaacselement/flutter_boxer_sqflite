@@ -1,18 +1,23 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
+import 'package:example/app.dart';
 import 'package:example/common/util/toast_helper.dart';
 import 'package:example/common/util/widget_util.dart';
 import 'package:example/database/box_cache_handler.dart';
 import 'package:example/database/box_cache_table.dart';
 import 'package:example/database/box_cache_tasks.dart';
+import 'package:example/database/box_tasks_manager.dart';
 import 'package:example/widget/table_view.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
-import 'package:synchronized_call/synchronized_call.dart';
+import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
+import 'package:synchronized_call/synchronized_call.dart';
 
 class PageTasksTable extends StatefulWidget {
   PageTasksTable({Key? key}) : super(key: key);
@@ -25,6 +30,7 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
   static const String TAG = 'PageTasksTable';
 
   Btv<bool> isGlobalTaskBtv = Btv<bool>(false);
+  Btv<bool> isNetworkDisconnected = Btv<bool>(false);
 
   @override
   void initState() {
@@ -89,7 +95,7 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
 
   Widget createTableView() {
     Map<String, dynamic> map = datasource;
-    if (map.isEmpty) return SizedBox();
+    if (map.isEmpty) return const SizedBox();
     return TableView(
       tableName: map[TableView.keyTblName],
       columnNames: List<String>.from(map[TableView.keyTblColumns]),
@@ -105,12 +111,10 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
 
   @override
   Widget build(BuildContext context) {
-    initBoxTasksHandler();
-
     Map<String, dynamic> action(IconData i, String s, Function(Map m) f) {
       return WidgetUtil.actionSheetItem(i, s, (e) async {
         f(e);
-        await Future.delayed(Duration(milliseconds: 200));
+        await Future.delayed(const Duration(milliseconds: 200));
         refreshTableViewDatasource();
       });
     }
@@ -118,7 +122,7 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
     VoidCallback wrapPress(VoidCallback fn) {
       return () async {
         fn();
-        await Future.delayed(Duration(milliseconds: 250));
+        await Future.delayed(const Duration(milliseconds: 250));
         refreshTableViewDatasource();
       };
     }
@@ -134,33 +138,49 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
                */
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: WidgetUtil.oneSwitcher(text: 'Global?', value: isGlobalTaskBtv),
+                child: WidgetUtil.oneSwitcher(text: 'Global Task?', value: isGlobalTaskBtv),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: WidgetUtil.oneSwitcher(
+                  text: 'Network Disconnected?',
+                  value: isNetworkDisconnected,
+                  onChanged: (oldValue, newValue) {
+                    BoxTasksManager.setNetworkStatus(newValue == false);
+                  },
+                ),
               ),
 
               /**
                * Refresh
                */
               CupertinoButton(
-                child: Text('Refresh', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   refreshTableViewDatasource();
                 },
               ),
 
               /**
-               * Clear
+               * Actions
                */
               CupertinoButton(
-                child: Text('Clear', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Actions', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
-                    action(Icons.one_k, 'Clear force', (Map action) async {
-                      await mTable.executor.delete(mTable.tableName);
+                    action(Icons.stop_circle_outlined, 'Stop', (Map action) async {
+                      BoxCacheTasks.instance.stop();
                     }),
-                    action(Icons.one_k, 'Clear self', (Map action) async {
+                    action(Icons.play_circle_outlined, 'Resume', (Map action) async {
+                      BoxCacheTasks.instance.resume();
+                    }),
+                    action(Icons.clear_outlined, 'Clear self', (Map action) async {
                       await mTable.delete(); // care about the userId & roleId
                     }),
-                    action(Icons.one_k, 'Reset auto id', (Map action) async {
+                    action(Icons.clear_all_outlined, 'Clear force', (Map action) async {
+                      await mTable.executor.delete(mTable.tableName);
+                    }),
+                    action(Icons.circle, 'Reset auto id', (Map action) async {
                       await mTable.resetAutoId();
                     }),
                   ];
@@ -172,39 +192,55 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
                * About Tasks
                */
               CupertinoButton(
-                child: Text('Add a http task', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: wrapPress(() async {
-                  String id = DateTime.now().millisecondsSinceEpoch.toString();
+                  String taskId = DateTime.now().millisecondsSinceEpoch.toString();
                   bool isPost = Random().nextBool();
-                  BoxCacheTasks.instance.addTask(BoxTask(
-                    type: 'TASK_TYPE_REQUEST',
-                    id: '$id',
-                    data: {
-                      'id': id,
-                      'method': isPost ? 'POST' : 'GET',
-                      'url': isPost ? 'https://www.baidu.com' : 'http://myip.ipip.net/',
-                    },
-                  ));
+                  String path = isPost ? 'https://www.baidu.com' : 'http://myip.ipip.net/';
+                  BoxTasksManager.addHttpTask(taskId, path, isHttpPost: isPost, isNeedFuture: true)?.then((value) {
+                    BoxerLogger.d(TAG, "FUTURE IS OK ${value.data is Response?}. ERROR: ${value.error}");
+                  });
                 }),
+                child: const Text('Add a http task', style: TextStyle(fontWeight: FontWeight.w300)),
               ),
               CupertinoButton(
-                child: Text('Add a same http task', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: wrapPress(() async {
-                  BoxTaskFeign? wrap = await BoxCacheTasks.instance.mTable.first<BoxTaskFeign>(
-                    type: 'TASK_TYPE_REQUEST',
-                  );
-                  if (wrap != null) {
-                    BoxTask task = wrap.task;
+                  BoxTaskFeign? httpTask =
+                      await BoxCacheTasks.instance.mTable.last<BoxTaskFeign>(type: BoxTaskType.HTTP_BIGGER);
+                  if (httpTask != null) {
+                    BoxTask task = httpTask.task;
                     task.data['method'] = 'POST';
+                    task.data['path'] = null;
                     task.data['url'] = 'http://ip-api.com/json/24.48.0.1?fields=61439';
                     BoxCacheTasks.instance.addTask(task);
                   }
                 }),
+                child: const Text('Add a same http task', style: TextStyle(fontWeight: FontWeight.w300)),
               ),
               CupertinoButton(
-                child: Text('Tasks', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Tasks', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
+                    action(Icons.timelapse, 'Add a caller doing Task', (Map action) async {
+                      String taskId = DateTime.now().millisecondsSinceEpoch.toString();
+                      String path = 'http://myip.ipip.net/';
+                      BoxTasksManager.addHttpTask(taskId, path, isHttpPost: false);
+                      BoxTasksManager.setHttpTaskDoingByMeNow(taskId);
+                      bool isDoingByMeSuccess = false;
+                      try {
+                        var result = await http.get(Uri.parse(path));
+                        await Future.delayed(const Duration(seconds: 3));
+                        if (kDebugMode && isNetworkDisconnected.value == true) {
+                          throw const SocketException('connection is disconnected');
+                        }
+                        BoxerLogger.d(TAG, "HTTP GET RESULT: $result");
+                        isDoingByMeSuccess = true;
+                      } catch (e, s) {
+                        isDoingByMeSuccess = false;
+                        BoxerLogger.d(TAG, "HTTP GET ERROR: $e, $s");
+                      } finally {
+                        BoxTasksManager.removeHttpTaskDoingByMeNow(taskId, isDoingByMeSuccess);
+                      }
+                    }),
                     action(Icons.one_k, 'Add a 2s Task', (Map action) async {
                       BoxCacheTasks.instance.addTask(BoxTask(
                         type: 'WAIT_ME',
@@ -219,6 +255,42 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
                         data: {},
                       ));
                     }),
+                    action(Icons.one_k, 'Add always failed Task', (Map action) async {
+                      BoxCacheTasks.instance.addTask(
+                        BoxTask(
+                          type: 'FAILED_TASK',
+                          id: '${DateTime.now().millisecondsSinceEpoch}',
+                          data: {},
+                        ),
+                      );
+                    }),
+                    action(Icons.one_k, 'Add always failed Task (3)', (Map action) async {
+                      BoxCacheTasks.instance.addTask(
+                        BoxTask(
+                          type: 'FAILED_TASK',
+                          id: '${DateTime.now().millisecondsSinceEpoch}',
+                          data: {},
+                        ),
+                        maxCount: 3,
+                      );
+                    }),
+                    action(Icons.one_k, 'Add 10 async task', (Map action) async {
+                      List<BoxTask> tasks = [];
+                      for (int i = 0; i < 10; i++) {
+                        String taskId = (DateTime.now().millisecondsSinceEpoch + i).toString();
+                        BoxTask task = BoxTask(
+                          type: BoxTaskType.HTTP_SMALL,
+                          id: taskId,
+                          isAsync: true,
+                          data: {'id': taskId, 'method': 'GET', 'url': 'http://myip.ipip.net/'},
+                        );
+                        tasks.add(task);
+                      }
+                      tasks.shuffle();
+                      for (BoxTask task in tasks) {
+                        BoxCacheTasks.instance.addTask(task);
+                      }
+                    }),
                   ];
                   WidgetUtil.showActionSheet(sheet: sheet);
                 },
@@ -232,78 +304,12 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
     );
   }
 
-  static bool isInit = false;
-
-  void initBoxTasksHandler() {
-    if (isInit) return;
-    isInit = true;
-
-    FutureOr<bool> doTask(BoxTaskFeign task) async {
-      bool isSuccess = false;
-      try {
-        isSuccess = await executeTask(task);
-      } catch (e, s) {
-        BoxerLogger.e(TAG, 'Do task $task error: $e, $s');
-      }
-
-      // toast and refresh view
-      BoxerLogger.d(TAG, 'Do a task$task ${isSuccess ? 'success' : 'failed'}');
-      ToastHelper.show('Do a task$task ${isSuccess ? 'success' : 'failed'}');
-      Future.delayed(Duration(milliseconds: 600), () {
-        CallLock.got<InclusiveLock>(TAG).call(() async {
-          await refreshTableViewDatasource();
-        });
+  static void refreshToastTaskDoneExecuteStatus(BoxTaskFeign task, bool isSuccess) {
+    ToastHelper.show('Do a task$task ${isSuccess ? 'success' : 'failed'}');
+    Future.delayed(const Duration(milliseconds: 600), () {
+      CallLock.got<InclusiveLock>(TAG).call(() async {
+        await (ElementsUtils.getStateOfType<PageTasksTableState>(AppState.appContext))?.refreshTableViewDatasource();
       });
-      return isSuccess;
-    }
-
-    BoxCacheTasks.instance.table = mTable;
-    BoxCacheTasks.instance.doTask = doTask;
-    BoxerTableTranslator.setModelTranslator<BoxTaskFeign>(
-      (Map e) => BoxTaskFeign.fromJson(e),
-      (BoxTaskFeign e) => e.toJson(),
-      (BoxTaskFeign e) => {BoxCacheTable.kCOLUMN_ITEM_TYPE: e.type, BoxCacheTable.kCOLUMN_ITEM_ID: e.id},
-    );
-
-    int flag = 0;
-    BoxCacheTasks.instance.putIfExecutor((current, previous) async {
-      if (current.task.type == 'SHOULD_DO_CHECK') {
-        bool isDo = flag++ > 2;
-        flag = isDo ? 0 : flag;
-        BoxerLogger.d(TAG, '--------------->>> Do the should do task $current or not: $isDo');
-        return isDo;
-      }
-      return true;
     });
-  }
-
-  Future<bool> executeTask(BoxTaskFeign task) async {
-    String type = task.type;
-    BoxerLogger.d(TAG, 'Task doing: $task');
-    if (type == 'TASK_TYPE_REQUEST') {
-      await Future.delayed(Duration(milliseconds: 5 * 1000));
-
-      Map data = task.task.data;
-      var method = data['method'];
-      var url = Uri.parse(data['url']);
-      BoxerLogger.d(TAG, 'Requesting: $method -> $url');
-
-      var response;
-      if (method == 'GET') {
-        response = await http.get(url);
-      } else if (method == 'POST') {
-        response = await http.post(url, body: data['body']);
-      }
-
-      BoxerLogger.d(TAG, '###### Response status: ${response.statusCode}, body: \n${response.body}');
-      return true;
-    } else if (type == 'WAIT_ME') {
-      await Future.delayed(Duration(milliseconds: 2 * 1000));
-      return true;
-    } else if (type == 'SHOULD_DO_CHECK') {
-      await Future.delayed(Duration(milliseconds: 1 * 1000));
-      return true;
-    }
-    return false;
   }
 }

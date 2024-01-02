@@ -56,18 +56,18 @@ class GradientTabBar extends StatelessWidget {
     /// If selected
     bool isSelectedTab(int i) => tabController?.index == i;
     String getTitle(int i) => (i < 0 || i >= list.length ? null : list.elementAt(i)) ?? '';
-    EdgeInsets getMargin(i) => i == list.length - 1 ? EdgeInsets.zero : EdgeInsets.only(right: 8);
+    EdgeInsets getMargin(i) => i == list.length - 1 ? EdgeInsets.zero : const EdgeInsets.only(right: 8);
 
-    Color _boxSelectedColor = boxSelectedColor ?? Color(0x1A006BE1).withAlpha(32);
-    Color _boxUnselectedColor = boxUnselectedColor ?? Color(0x0831456A).withAlpha(16);
+    Color mBoxSelectedColor = boxSelectedColor ?? const Color(0x1A006BE1).withAlpha(32);
+    Color mBoxUnselectedColor = boxUnselectedColor ?? const Color(0x0831456A).withAlpha(16);
     List<Widget> children = <Widget>[
       for (int i = 0; i < list.length; i++)
         TabBackgroundAnimatedBar.transitionBox(
           getTitle(i),
           isSelectedTab(i),
           getMargin(i),
-          _boxSelectedColor,
-          _boxUnselectedColor,
+          mBoxSelectedColor,
+          mBoxUnselectedColor,
           0,
         )
     ];
@@ -89,8 +89,8 @@ class GradientTabBar extends StatelessWidget {
         title: getTitle(index),
         selected: isSelectedTab(index),
         margin: getMargin(index),
-        selectedColor: _boxSelectedColor,
-        unselectedColor: _boxUnselectedColor,
+        selectedColor: mBoxSelectedColor,
+        unselectedColor: mBoxUnselectedColor,
         animation: animation,
       );
     }

@@ -39,7 +39,7 @@ class BoxCacheTable extends BoxerTableTranslator {
       return value;
     };
 
-    writeTranslator = (dynamic item) {
+    writeTranslator = (dynamic item, Map<String, Object?>? values) {
       Object? value;
       if (/* item is bool || */ item is num || item is String) {
         /// primitive type
@@ -80,7 +80,7 @@ class BoxCacheTable extends BoxerTableTranslator {
       '$kCOLUMN_UPDATE_TIME INTEGER, '
       '$kCOLUMN_USER_ID INTEGER, '
       '$kCOLUMN_ROLE_ID INTEGER, '
-      // extra create sql something like `CREATE INDEX ...`
+      // use SEPARATOR ';' to supply every extra execute/create sql something like `CREATE INDEX ...`
       ';'
       // 'CREATE UNIQUE INDEX IF NOT EXISTS Uq_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
       'CREATE INDEX IF NOT EXISTS Idx_${kCOLUMN_ITEM_ID}_$tableName ON $tableName ( $kCOLUMN_ITEM_ID )';
@@ -233,13 +233,16 @@ class BoxCacheTable extends BoxerTableTranslator {
     String? itemId,
     dynamic value,
     bool isReThrow = false,
+
+    // translator that usually not necessary. important!!! Will do replace the outer map, not merge with addAll!!!
+    WriteTranslator<dynamic>? translator,
   }) async {
+    translator ??= (e, s) => {
+          if (type != null) BoxCacheTable.kCOLUMN_ITEM_TYPE: type,
+          if (itemId != null) BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
+        };
     try {
-      return await mInsert<dynamic>(value,
-          translator: (e) => {
-                if (type != null) BoxCacheTable.kCOLUMN_ITEM_TYPE: type,
-                if (itemId != null) BoxCacheTable.kCOLUMN_ITEM_ID: itemId,
-              });
+      return await mInsert<dynamic>(value, translator: translator);
     } catch (e, s) {
       if (isReThrow) rethrow;
       BoxerLogger.e(TAG, '$tableName method [add] error: $e, $s');
@@ -351,12 +354,15 @@ class BoxCacheTable extends BoxerTableTranslator {
     String? itemId,
     dynamic value,
     bool isReThrow = false,
+
+    // extra translator, usually not necessary
+    WriteTranslator<dynamic>? translator,
   }) async {
     try {
       /* List<Object?>? result = */ await doBatch((clone) {
         clone as BoxCacheTable;
         clone.remove(id: id, type: type, itemId: itemId);
-        clone.add(type: type, itemId: itemId, value: value);
+        clone.add(type: type, itemId: itemId, value: value, translator: translator);
       });
       // the batch result is [deleted_count, inserted_id]
     } catch (e, s) {

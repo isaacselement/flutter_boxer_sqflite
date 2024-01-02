@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:intl/intl.dart' as intl;
 
 class DatesUtils {
@@ -42,7 +44,7 @@ class DatesUtils {
 
   /// The over of date, set HH:mm:ss to 23:59:59
   static DateTime getOver(DateTime d) {
-    return d.add(Duration(days: 1)).subtract(Duration(milliseconds: 1));
+    return d.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
   }
 
   /// Day and month values begin at 1, and the week starts on Monday.
@@ -65,7 +67,7 @@ class DatesUtils {
 
   /// Saturday as a week end, set HH:mm:ss to 23:59:59
   static DateTime getSaturdayOver(DateTime d) {
-    return getSundayStart(d).add(Duration(days: DateTime.daysPerWeek)).subtract(Duration(milliseconds: 1));
+    return getSundayStart(d).add(const Duration(days: DateTime.daysPerWeek)).subtract(const Duration(milliseconds: 1));
   }
 
   /// Reset minutes and seconds to zero

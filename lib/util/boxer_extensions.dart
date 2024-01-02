@@ -68,5 +68,5 @@ extension IterableEx<E> on Iterable<E> {
 
 /// String Extensions
 extension StringEx on String {
-  String removeLast(String s) => this.endsWith(s) ? this.substring(0, this.length - 1) : this;
+  String removeEndWith(String s) => this.endsWith(s) ? this.substring(0, this.length - s.length) : this;
 }

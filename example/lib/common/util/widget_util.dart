@@ -158,17 +158,24 @@ class WidgetUtil {
   }
 
   /// Switcher Widget
-  static Widget oneSwitcher({required String text, required Btv<bool> value}) {
+  static Widget oneSwitcher({
+    required String text,
+    required Btv<bool> value,
+    void Function(bool oldValue, bool newValue)? onChanged,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(text),
         Btw(
           builder: (context) => Switch(
-            value: value.value,
-            activeColor: Colors.green,
-            onChanged: (bool v) => value.value = v,
-          ),
+              value: value.value,
+              activeColor: Colors.green,
+              onChanged: (bool newValue) {
+                bool oldValue = value.value;
+                value.value = newValue;
+                onChanged?.call(oldValue, newValue);
+              }),
         ),
       ],
     );

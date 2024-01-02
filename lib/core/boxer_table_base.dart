@@ -1,6 +1,8 @@
 import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 
 abstract class BoxerTableBase {
+  static const String SEPARATOR = ';';
+
   /// Database or Transaction instance
   late Database database;
 
@@ -39,15 +41,18 @@ abstract class BoxerTableBase {
     db ??= database;
     String? spec = createTableSpecification?.trim();
     if (spec == null) return null;
-    List<String> strings = spec.split(';');
+    List<String> strings = spec.split(SEPARATOR);
 
     /// get the create table sql
     String createTableSql = strings.firstSafe?.trim() ?? '';
     if (createTableSql.isEmpty) return null;
-    createTableSql = createTableSql.removeLast(',');
-    createTableSql = 'CREATE TABLE IF NOT EXISTS $tableName ( $createTableSql )';
+    if (!createTableSql.startsWith('CREATE TABLE')) {
+      /// if just columns & columns' type definitions
+      createTableSql = createTableSql.removeEndWith(',');
+      createTableSql = 'CREATE TABLE IF NOT EXISTS $tableName ( $createTableSql )';
+    }
     if (strings.length > 1) {
-      /// with other sql like: 'CREATE UNIQUE INDEX IF NOT EXISTS $indexName ON $tableName ( columnName );'
+      /// with others sql like: 'CREATE UNIQUE INDEX IF NOT EXISTS $indexName ON $tableName ( columnName );'
       strings.removeAt(0);
       strings.insert(0, createTableSql);
     }
@@ -57,7 +62,7 @@ abstract class BoxerTableBase {
         await db.execute(sql);
       } catch (e, s) {
         BoxerLogger.f(null, 'Boxer createTableIfNeeded error: $e, $s');
-        BoxerLogger.reportFatalError(e, s);
+        BoxerLogger.reportFatal(e, s);
         return false;
       }
     }
@@ -122,7 +127,7 @@ abstract class BoxerTableBase {
         }
       }
       BoxerLogger.f(null, 'Insert error: $e, $s');
-      BoxerLogger.reportFatalError(e, s);
+      BoxerLogger.reportFatal(e, s);
       return -1;
     }
   }

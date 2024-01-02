@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:example/common/util/dates_utils.dart';
 import 'package:example/common/util/toast_helper.dart';
@@ -147,12 +148,77 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
           Wrap(
             children: [
               /**
+               * Logs
+               */
+              CupertinoButton(
+                child: const Text('Logs', style: TextStyle(fontWeight: FontWeight.w300)),
+                onPressed: () async {
+                  List<Map> sheet = [
+                    WidgetUtil.actionSheetItem(Icons.one_k, 'Logger tests', (Map action) async {
+                      BoxerLogger.logger = (int level, String? tag, String message) {
+                        print('>>>>><<<<< logger: $level, $tag, $message');
+                      };
+                      BoxerLogger.v(null, 'v message');
+                      BoxerLogger.d(null, 'd message');
+                      BoxerLogger.i(null, 'i message');
+                      BoxerLogger.logger = null;
+                      BoxerLogger.w(null, 'w message');
+                      BoxerLogger.f('TAG', 'f message');
+                      BoxerLogger.marker = (int flag, String? tag, Object? object) {
+                        BoxerLogger.d('marker', 'marker: $flag, $tag, $object');
+                      };
+                      BoxerLogger.mark(flag: 20001, tag: 'HAHA', object: '哈哈哈 data');
+                      BoxerLogger.fatalReporter = (dynamic e, dynamic s) {
+                        BoxerLogger.d('fatalReporter', 'fatalReporter: $e, $s');
+                      };
+                      BoxerLogger.reportFatal(AssertionError('You so good'), StackTrace.current);
+
+                      BoxerLogger.console(() => 'console good job');
+                    }),
+                  ];
+
+                  WidgetUtil.showActionSheet(sheet: sheet);
+                },
+              ),
+
+              /**
                * Refresh
                */
               CupertinoButton(
-                child: Text('Refresh', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   refreshDataSourceWithScrollToBottom();
+                },
+              ),
+
+              /**
+               * Utils
+               */
+              CupertinoButton(
+                child: const Text('Utils', style: TextStyle(fontWeight: FontWeight.w300)),
+                onPressed: () async {
+                  List<Map> sheet = [
+                    WidgetUtil.actionSheetItem(Icons.one_k, 'Get column value', (Map action) async {
+                      List<Map<String, Object?>> values = await BoxCacheHandler.commonTable.query();
+                      Map<String, Object?>? first = values.firstSafe;
+                      BoxerQueryOption op =
+                          BoxerQueryOption.e(column: BoxCacheTable.kCOLUMN_ID, value: first?[BoxCacheTable.kCOLUMN_ID]);
+                      Object? itemId =
+                          await BoxCacheHandler.commonTable.getColumnValue(BoxCacheTable.kCOLUMN_ITEM_ID, options: op);
+                      ToastHelper.show('Get column value: $itemId');
+                    }),
+                    WidgetUtil.actionSheetItem(Icons.one_k, 'Set column value', (Map action) async {
+                      Object? id = await BoxCacheHandler.commonTable.getColumnValue(BoxCacheTable.kCOLUMN_ID);
+                      BoxerQueryOption op = BoxerQueryOption.e(column: BoxCacheTable.kCOLUMN_ID, value: id);
+                      String value = '💯 [${Random().nextInt(100) + 1000}]';
+                      await BoxCacheHandler.commonTable
+                          .setColumnValue(BoxCacheTable.kCOLUMN_ITEM_ID, value, options: op);
+                      ToastHelper.show('Set column id $id, value to: $value');
+                      refreshDataSourceWithScrollToBottom();
+                    }),
+                  ];
+
+                  WidgetUtil.showActionSheet(sheet: sheet);
                 },
               ),
 
@@ -160,7 +226,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                * Clear
                */
               CupertinoButton(
-                child: Text('Clear', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Clear', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Clear force', (Map action) async {
@@ -184,7 +250,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                * Insert
                */
               CupertinoButton(
-                child: Text('Insert', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Insert', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Insert Bread Model [nothing]', (Map action) async {
@@ -195,7 +261,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Insert Bread Model [headline]', (Map action) async {
                       int insertedId = await BoxCacheHandler.commonTable.mInsertModel<Bread>(
                         BreadGenerator.oneModel,
-                        translator: (e) => {
+                        translator: (e, s) => {
                           BoxCacheTable.kCOLUMN_ITEM_TYPE: 'BREAD_headline',
                         },
                       );
@@ -205,7 +271,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Insert Bread Model [newest]', (Map action) async {
                       int insertedId = await BoxCacheHandler.commonTable.mInsertModel<Bread>(
                         BreadGenerator.oneModel,
-                        translator: (e) => {
+                        translator: (e, s) => {
                           BoxCacheTable.kCOLUMN_ITEM_TYPE: 'BREAD_newest',
                         },
                       );
@@ -216,7 +282,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                         (Map action) async {
                       int insertedId = await BoxCacheHandler.commonTable.mInsertModel<Bread>(
                         BreadGenerator.oneModel,
-                        translator: (e) => {
+                        translator: (e, s) => {
                           BoxCacheTable.kCOLUMN_ITEM_TYPE: 'BREAD_newest',
                           BoxCacheTable.kCOLUMN_ITEM_ID: 'XXX${e.uuid}',
                         },
@@ -227,7 +293,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Insert Bread Map [newest]', (Map action) async {
                       int insertedId = await BoxCacheHandler.commonTable.mInsert<Map>(
                         BreadGenerator.oneMap(),
-                        translator: (e) => {
+                        translator: (e, s) => {
                           BoxCacheTable.kCOLUMN_ITEM_TYPE: 'BREAD_headline',
                         },
                       );
@@ -237,7 +303,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Insert Bread Map [newest with uuid]', (Map action) async {
                       int insertedId = await BoxCacheHandler.commonTable.mInsert<Map>(
                         BreadGenerator.oneMap(),
-                        translator: (e) => {
+                        translator: (e, s) => {
                           BoxCacheTable.kCOLUMN_ITEM_TYPE: 'BREAD_newest',
                           BoxCacheTable.kCOLUMN_ITEM_ID: e['uuid'],
                         },
@@ -248,7 +314,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Insert Different UserId & RoleId', (Map action) async {
                       int insertedId = await BoxCacheHandler.commonTable.mInsertModel<Bread>(
                         BreadGenerator.oneModel,
-                        translator: (e) => {
+                        translator: (e, s) => {
                           BoxCacheTable.kCOLUMN_ITEM_TYPE: 'XXXXXX',
                           BoxCacheTable.kCOLUMN_USER_ID: 800,
                           BoxCacheTable.kCOLUMN_ROLE_ID: 800900,
@@ -266,7 +332,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                * Query
                */
               CupertinoButton(
-                child: Text('Query', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Query', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
                     WidgetUtil.actionSheetItem(Icons.one_k, 'All', (Map action) async {
@@ -307,7 +373,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                * Update
                */
               CupertinoButton(
-                child: Text('Update', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Update', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   WidgetUtil.showActionSheet(sheet: [
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Update first Bread Model', (Map action) async {
@@ -381,7 +447,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                       List<Future<int>> futures = [];
                       results.forEach((bread) async {
                         bread.breadContent = 'USER ID CHANGED!';
-                        Future<int> f = BoxCacheHandler.commonTable.mUpdateModel<Bread>(bread, translator: (e) {
+                        Future<int> f = BoxCacheHandler.commonTable.mUpdateModel<Bread>(bread, translator: (e, s) {
                           return {
                             BoxCacheTable.kCOLUMN_USER_ID: 100,
                           };
@@ -408,7 +474,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
                * Reset
                */
               CupertinoButton(
-                child: Text('Clear & update 6 times at the same time', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Clear & update 6 times at the same time', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
                     WidgetUtil.actionSheetItem(Icons.one_k, 'Without Anything', (Map map) {
@@ -441,8 +507,9 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
     String lastType = '';
 
     Future<void> doClearUpdate() async {
-      /// Do insert 5 items per-time
-      List<Map> fiveItems = [
+      /// Do insert 6 items per-time
+      List<Map> sixItems = [
+        BreadGenerator.oneMap(),
         BreadGenerator.oneMap(),
         BreadGenerator.oneMap(),
         BreadGenerator.oneMap(),
@@ -452,12 +519,15 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
       String itemType = StringsUtils.random(6);
       int beginTime = DateTime.now().millisecondsSinceEpoch;
       List<Object?>? insertedIds = await BoxCacheHandler.commonTable.resetWithItems<Map>(
-        fiveItems,
-        translator: (e) {
-          Map<String, Object?> map = BoxCacheHandler.commonTable.writeTranslator!.call(e);
+        sixItems,
+        translator: (e, s) {
+          // way 1. the same as way 2
+          Map<String, Object?> map = BoxCacheHandler.commonTable.writeTranslator!.call(e, s); // s == map -> true
           map[BoxCacheTable.kCOLUMN_ITEM_TYPE] = 'CLEAR_$itemType';
           map[BoxCacheTable.kCOLUMN_ITEM_ID] = e['uuid'];
           return map;
+          // way 2. the same as way 1, cause s will add the following map
+          // return {BoxCacheTable.kCOLUMN_ITEM_TYPE: 'CLEAR_$itemType', BoxCacheTable.kCOLUMN_ITEM_ID: e['uuid']};
         },
         syncType: syncBatchLockTransactionType,
       );
@@ -497,7 +567,7 @@ class PageAllTablesState extends State<PageAllTables> with WidgetsBindingObserve
     ScrollController? scrollController = tableListScrollControllerMap[tableName];
     scrollController?.animateTo(
       scrollController.position.maxScrollExtent,
-      duration: Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 200),
       curve: Curves.ease,
     );
   }

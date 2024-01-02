@@ -49,7 +49,7 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
       results = await mQueryAsList(options: options) as List<T?>;
     } else {
       /// if has model translator already ?
-      if (fromJson != null || BoxerTableTranslator.hasModelTranslator<T>()) {
+      if (fromJson != null || BoxerModelTranslator.hasModelTranslator<T>(this)) {
         return await mQueryAsModels<T>(options: options, fromJson: fromJson);
       }
       List<Object?> list = await mQuery(options: options);
@@ -79,7 +79,7 @@ mixin BoxerQueryFunctions on BoxerTableInterceptor {
 
   /// translate model based on a Json-Object Map, [fromJson] indicate that how-to translate Map to model T object
   Future<List<T>> mQueryAsModels<T>({ModelTranslatorFromJson<T>? fromJson, BoxerQueryOption? options}) async {
-    ModelTranslatorFromJson<T>? translate = BoxerTableTranslator.getModelTranslatorFrom<T>(fromJson);
+    ModelTranslatorFromJson<T>? translate = BoxerModelTranslator.getModelTranslatorFrom<T>(this, fromJson);
     if (translate == null) return [];
     return (await mQueryAsMap(options: options)).map((e) => translate(e)).toList();
   }

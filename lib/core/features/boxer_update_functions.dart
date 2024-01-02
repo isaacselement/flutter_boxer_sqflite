@@ -69,18 +69,18 @@ mixin BoxerUpdateFunctions on BoxerTableInterceptor {
     ModelTranslatorToJson<T>? toJson,
     WriteTranslator<T>? translator,
   }) async {
-    ModelTranslatorToJson<T>? translate = BoxerTableTranslator.getModelTranslatorTo(toJson);
+    ModelTranslatorToJson<T>? translate = BoxerModelTranslator.getModelTranslatorTo(this, toJson);
     if (translate == null || model == null) return 0;
     Map<String, Object?> values = Map<String, Object?>.from(translate(model));
 
-    WriteTranslator<Map<String, Object?>>? translatorOuter = (e) => translator?.call(model) ?? {};
-    Map<String, dynamic>? fields = BoxerTableTranslator.getModelIdentifyFields<T>()?.call(model);
+    WriteTranslator<Map<String, Object?>> translatorOuter = (e, s) => translator?.call(model, s) ?? {};
+    Map<String, dynamic>? fields = BoxerModelTranslator.getModelIdentifyFields<T>(this)?.call(model);
     if (fields != null && fields.isNotEmpty) {
       BoxerQueryOption op = BoxerQueryOption.eq(columns: fields.keys.toList(), values: fields.values.toList());
       options = options?.merge(op) ?? op;
     }
 
-    return await mUpdate(values, options: options, translator: translatorOuter);
+    return await mUpdate<Map<String, Object?>>(values, options: options, translator: translatorOuter);
   }
 
   Future<int> mUpdate<T>(T? item, {BoxerQueryOption? options, WriteTranslator<T>? translator}) async {

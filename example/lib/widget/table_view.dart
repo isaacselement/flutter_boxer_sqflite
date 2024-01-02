@@ -54,7 +54,7 @@ class TableViewState extends State<TableView> {
   /// Width for per column
   Map<String, Btv<double>?> columnsWidthMap = {};
 
-  TextEditingController textEditingController = new TextEditingController();
+  TextEditingController textEditingController = TextEditingController();
 
   @override
   void initState() {
@@ -103,7 +103,7 @@ class TableViewState extends State<TableView> {
       children: [
         Text(
           widget.tableName,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             shadows: <Shadow>[
@@ -112,8 +112,8 @@ class TableViewState extends State<TableView> {
             ],
           ),
         ),
-        SizedBox(width: 8),
-        Text('${widget.rowsCount}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w300, color: Colors.grey)),
+        const SizedBox(width: 8),
+        Text('${widget.rowsCount}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w300, color: Colors.grey)),
       ],
     );
 
@@ -126,9 +126,9 @@ class TableViewState extends State<TableView> {
         Widget getOneHeaderElement({required String name, required double width}) {
           return Container(
             width: width,
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             alignment: Alignment.center,
-            child: Text(name, style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold)),
+            child: Text(name, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold)),
           );
         }
 
@@ -140,7 +140,7 @@ class TableViewState extends State<TableView> {
             child: Text(
               value,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
             ),
           );
         }
@@ -157,7 +157,7 @@ class TableViewState extends State<TableView> {
                 right: 0,
                 bottom: 0,
                 child: GestureDetector(
-                  child: ColoredBox(color: Colors.white, child: SizedBox(width: 30, height: 1)),
+                  child: const ColoredBox(color: Colors.white, child: SizedBox(width: 30, height: 1)),
                   onHorizontalDragDown: (DragDownDetails details) {
                     dragStartW = everyColumnWidth(name);
                     dragStartX = details.localPosition.dx;
@@ -202,14 +202,14 @@ class TableViewState extends State<TableView> {
                       DialogWrapper.showCenter(WidgetUtil.newEditBox(controller: textEditingController));
                     },
                     child: Container(
-                      child: Row(children: [
-                        if (widget.isShowSeq) getOneRowElement(name: '', value: '$index', width: kColumnSeqWidth),
-                        ...rowChildren,
-                      ]),
                       decoration: BoxDecoration(
                         color: selectIndex.value == index ? Colors.grey.withAlpha(128) : Colors.white,
                         border: Border(bottom: BorderSide(color: Colors.grey.withAlpha(32), width: 1)),
                       ),
+                      child: Row(children: [
+                        if (widget.isShowSeq) getOneRowElement(name: '', value: '$index', width: kColumnSeqWidth),
+                        ...rowChildren,
+                      ]),
                     ),
                   ),
                 ),
@@ -220,7 +220,7 @@ class TableViewState extends State<TableView> {
 
         return Container(
           height: widget.height,
-          padding: EdgeInsets.only(
+          padding: const EdgeInsets.only(
             left: 8,
             right: 8,
             top: 8,
@@ -231,11 +231,11 @@ class TableViewState extends State<TableView> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(5),
               border: Border.all(color: Colors.orange.withAlpha(64)),
-              boxShadow: [BoxShadow(color: Colors.grey, blurRadius: 20.0)],
+              boxShadow: const [BoxShadow(color: Colors.grey, blurRadius: 20.0)],
             ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Container(
+              child: SizedBox(
                 width: getHeaderTotalWidth(),
                 child: Column(children: [headerWidget, Expanded(child: listWidget)]),
               ),

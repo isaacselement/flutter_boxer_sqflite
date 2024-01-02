@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 
 import 'package:example/common/util/toast_helper.dart';
@@ -27,8 +29,8 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
     clearDatasource();
 
     refreshDataSourceDuration(
-      cacheDuration: Duration(milliseconds: 1000),
-      requestDuration: Duration(milliseconds: 3000),
+      cacheDuration: const Duration(milliseconds: 1000),
+      requestDuration: const Duration(milliseconds: 3000),
     );
   }
 
@@ -81,7 +83,7 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
       children.add(oneTableWidget);
     }
     if (children.isNotEmpty) {
-      children.add(SizedBox(height: 38));
+      children.add(const SizedBox(height: 38));
     }
     return Column(children: children);
   }
@@ -98,26 +100,26 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
             runAlignment: WrapAlignment.center,
             children: [
               CupertinoButton(
-                child: Text('Clear Screen', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Clear Screen', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () {
                   clearDatasource();
                 },
               ),
               CupertinoButton(
-                child: Text('Cache first then Request', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Cache first then Request', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   refreshDataSourceDuration(
-                    cacheDuration: Duration(milliseconds: 1000),
-                    requestDuration: Duration(milliseconds: 3000),
+                    cacheDuration: const Duration(milliseconds: 1000),
+                    requestDuration: const Duration(milliseconds: 3000),
                   );
                 },
               ),
               CupertinoButton(
-                child: Text('Request first then Cache', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Request first then Cache', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   refreshDataSourceDuration(
-                    cacheDuration: Duration(milliseconds: 3000),
-                    requestDuration: Duration(milliseconds: 1000),
+                    cacheDuration: const Duration(milliseconds: 3000),
+                    requestDuration: const Duration(milliseconds: 1000),
                   );
                 },
               ),
@@ -130,7 +132,7 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Cache Error'),
+                  const Text('Cache Error'),
                   Switch(
                     value: isThrowErrorOnCache,
                     activeColor: Colors.red,
@@ -145,7 +147,7 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Request Error'),
+                  const Text('Request Error'),
                   Switch(
                     value: isThrowErrorOnRequest,
                     activeColor: Colors.red,

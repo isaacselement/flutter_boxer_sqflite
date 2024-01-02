@@ -59,6 +59,7 @@ class AppState extends State<App> with SingleTickerProviderStateMixin {
     BoxerLogger.d(TAG, '--------->>>>> App Rebuild!!!');
 
     ScreensUtils.context = context;
+    shower_log_enable = false;
     DialogShower.init(context);
     OverlayShower.init(context);
     DialogWrapper.centralOfShower ??= (DialogShower shower, {Widget? child}) {

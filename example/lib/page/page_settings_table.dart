@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
 import 'dart:math';
 
@@ -13,7 +15,7 @@ import 'package:flutter_boxer_sqflite/flutter_boxer_sqflite.dart';
 import 'package:flutter_dialog_shower/flutter_dialog_shower.dart';
 
 class PageSettingsTable extends StatefulWidget {
-  PageSettingsTable({Key? key}) : super(key: key);
+  const PageSettingsTable({Key? key}) : super(key: key);
 
   @override
   PageSettingsTableState createState() => PageSettingsTableState();
@@ -73,7 +75,7 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
 
   Widget createTableView() {
     Map<String, dynamic> map = datasource;
-    if (map.isEmpty) return SizedBox();
+    if (map.isEmpty) return const SizedBox();
     return TableView(
       tableName: map[TableView.keyTblName],
       columnNames: List<String>.from(map[TableView.keyTblColumns]),
@@ -98,7 +100,7 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
     Map<String, dynamic> action(IconData i, String s, Function(Map m) f) {
       return WidgetUtil.actionSheetItem(i, s, (e) async {
         f(e);
-        await Future.delayed(Duration(milliseconds: 200));
+        await Future.delayed(const Duration(milliseconds: 200));
         refreshTableViewDatasource();
       });
     }
@@ -113,7 +115,7 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                * Refresh
                */
               CupertinoButton(
-                child: Text('Refresh', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   refreshTableViewDatasource();
                 },
@@ -123,7 +125,7 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                * Clear
                */
               CupertinoButton(
-                child: Text('Clear', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Clear', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
                     action(Icons.one_k, 'Clear force', (Map action) async {
@@ -144,7 +146,7 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                * Query & list
                */
               CupertinoButton(
-                child: Text('Query', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Query', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
                     action(Icons.one_k, '>>> [query] method', (Map action) async {
@@ -165,26 +167,26 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                     }),
                     action(Icons.one_k, '>>> [select one] method', (Map action) async {
                       Object? results = await mTable.select([BoxCacheTable.kCOLUMN_ITEM_VALUE], isUnique: true);
-                      ToastHelper.show('[select] result: ${results}');
-                      BoxerLogger.d(TAG, '---->>>>> [select one] result: ${results}');
+                      ToastHelper.show('[select] result: $results');
+                      BoxerLogger.d(TAG, '---->>>>> [select one] result: $results');
                     }),
                     action(Icons.one_k, '>>> [select two/true] method', (Map action) async {
                       Object? results = await mTable.select(
                         [BoxCacheTable.kCOLUMN_ITEM_TYPE, BoxCacheTable.kCOLUMN_ITEM_VALUE],
                         isUnique: true,
                       );
-                      ToastHelper.show('[select two/true] result: ${results}');
+                      ToastHelper.show('[select two/true] result: $results');
                       BoxerLogger.d(
-                          TAG, '---->>>>> [list two/true] result: ${results},  \nJSON string: ${json.encode(results)}');
+                          TAG, '---->>>>> [list two/true] result: $results,  \nJSON string: ${json.encode(results)}');
                     }),
                     action(Icons.one_k, '>>> [select two/false] method', (Map action) async {
                       Object? results = await mTable.select(
                         [BoxCacheTable.kCOLUMN_ITEM_TYPE, BoxCacheTable.kCOLUMN_ITEM_VALUE],
                         isUnique: false,
                       );
-                      ToastHelper.show('[select two/false] result: ${results}');
+                      ToastHelper.show('[select two/false] result: $results');
                       BoxerLogger.d(TAG,
-                          '---->>>>> [list two/false] result: ${results},  \nJSON string: ${json.encode(results)}');
+                          '---->>>>> [list two/false] result: $results,  \nJSON string: ${json.encode(results)}');
                     }),
                   ];
                   WidgetUtil.showActionSheet(sheet: sheet);
@@ -195,7 +197,7 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                * Add & Remove & Get & Set & Modify
                */
               CupertinoButton(
-                child: Text('Add & Get & Set & Modify & Remove ', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Add & Get & Set & Modify & Remove ', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   // common test item type
                   String itemType = 'IS_READ';
@@ -222,8 +224,8 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                       }
                     }),
                     action(Icons.one_k, '[exist] method', (Map action) async {
-                      String _itemId = await getFirstItemId();
-                      bool isExisted = await mTable.exist(type: itemType, itemId: _itemId);
+                      String mItemId = await getFirstItemId();
+                      bool isExisted = await mTable.exist(type: itemType, itemId: mItemId);
                       bool fake = await mTable.exist(type: itemType, itemId: StringsUtils.fakeUUID());
                       ToastHelper.show('Is existed? $isExisted, fake existed? $fake');
                     }),
@@ -242,32 +244,32 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                       ToastHelper.show('[first] value: $firstValue, [last] value: $lastValue');
                     }),
                     action(Icons.one_k, '[remove] method', (Map action) async {
-                      String _itemId = await getFirstItemId();
-                      int value = await mTable.remove(type: itemType, itemId: _itemId);
+                      String mItemId = await getFirstItemId();
+                      int value = await mTable.remove(type: itemType, itemId: mItemId);
                       ToastHelper.show('[remove] count: $value');
                     }),
                     action(Icons.one_k, '[get] method', (Map action) async {
-                      String _itemId = await getFirstItemId();
-                      String value = await mTable.get(type: itemType, itemId: _itemId);
+                      String mItemId = await getFirstItemId();
+                      String value = await mTable.get(type: itemType, itemId: mItemId);
                       ToastHelper.show('[get] value: $value');
                     }),
                     action(Icons.one_k, '[set] method', (Map action) async {
-                      String _itemId = await getFirstItemId();
+                      String mItemId = await getFirstItemId();
                       int value = Random().nextInt(10) + 10;
                       ToastHelper.show('Value change to $value');
-                      await mTable.set(type: itemType, itemId: _itemId, value: '$value');
+                      await mTable.set(type: itemType, itemId: mItemId, value: '$value');
                     }),
                     action(Icons.one_k, '[modify] method', (Map action) async {
-                      String _itemId = await getFirstItemId();
+                      String mItemId = await getFirstItemId();
                       int value = Random().nextInt(10) + 10;
                       ToastHelper.show('Value change to $value');
-                      await mTable.modify(type: itemType, itemId: _itemId, value: '$value');
+                      await mTable.modify(type: itemType, itemId: mItemId, value: '$value');
                     }),
                     action(Icons.one_k, '[reset] method', (Map action) async {
-                      String _itemId = await getFirstItemId();
+                      String mItemId = await getFirstItemId();
                       int value = Random().nextInt(10) + 10;
                       ToastHelper.show('Value change to $value');
-                      await mTable.reset(type: itemType, itemId: _itemId, value: '$value');
+                      await mTable.reset(type: itemType, itemId: mItemId, value: '$value');
                     }),
                     action(Icons.one_k, '[eliminate] method, (6)', (Map action) async {
                       await mTable.eliminate(limit: 6, type: itemType);
@@ -281,11 +283,11 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                * Insert & Query num/int/double/bool type value
                */
               CupertinoButton(
-                child: Text('Primitive Type', style: TextStyle(fontWeight: FontWeight.w300)),
+                child: const Text('Primitive Type', style: TextStyle(fontWeight: FontWeight.w300)),
                 onPressed: () async {
                   List<Map> sheet = [
                     action(Icons.one_k, 'Insert bool', (Map action) async {
-                      int mId = await mTable.mInsert(new Random().nextBool(), translator: (e) {
+                      int mId = await mTable.mInsert(Random().nextBool(), translator: (e, s) {
                         return {BoxCacheTable.kCOLUMN_ITEM_TYPE: 'bool_value_case'};
                       });
                       print('######## mInserted id >>>>> $mId');
@@ -296,7 +298,7 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                       print('######## list results >>>>> $results');
                     }),
                     action(Icons.one_k, 'Insert int', (Map action) async {
-                      int mId = await mTable.mInsert(100, translator: (e) {
+                      int mId = await mTable.mInsert(100, translator: (e, s) {
                         return {BoxCacheTable.kCOLUMN_ITEM_TYPE: 'int_value_case'};
                       });
                       print('######## mInserted id >>>>> $mId');
@@ -307,7 +309,7 @@ class PageSettingsTableState extends State<PageSettingsTable> with WidgetsBindin
                       print('######## list results >>>>> $results');
                     }),
                     action(Icons.one_k, 'Insert double', (Map action) async {
-                      int mId = await mTable.mInsert(121.01, translator: (e) {
+                      int mId = await mTable.mInsert(121.01, translator: (e, s) {
                         return {BoxCacheTable.kCOLUMN_ITEM_TYPE: 'double_value_case'};
                       });
                       print('######## mInserted id >>>>> $mId');
