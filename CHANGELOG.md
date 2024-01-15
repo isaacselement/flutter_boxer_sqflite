@@ -1,3 +1,7 @@
+# 1.1.3
+
+*  Improved the tasks manager
+
 # 1.1.2
 
 *  Supports instance's modelTranslators property & improved the tasks manager

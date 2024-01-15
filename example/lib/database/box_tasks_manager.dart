@@ -86,7 +86,7 @@ class BoxTasksManager {
     _callerDoingTasks?.remove(taskKey);
     if (isSuccess) {
       try {
-        bool isRemoved = await BoxCacheTasks.instance.removeTask(taskType: type, taskId: id) == 1;
+        bool isRemoved = await BoxTasksManager.cacheTasks.removeTask(taskType: type, taskId: id) == 1;
         BoxerLogger.i(TAG, 'RemoveDoingByMe result: $taskKey, $isRemoved');
         return isRemoved;
       } catch (e, s) {
@@ -101,66 +101,63 @@ class BoxTasksManager {
   }
 
   /// Start the task looper
-  static void start() {
-    BoxCacheTasks.instance.start();
-  }
+  static void start() => BoxTasksManager.cacheTasks.start();
+
+  /// Stop the task looper, corresponding to [resume] method
+  static void stop() => BoxTasksManager.cacheTasks.stop();
+
+  /// Resume the task looper, corresponding to [stop] method
+  static void resume() => BoxTasksManager.cacheTasks.resume();
+
+  static BoxCacheTasks? _cacheTasks;
+
+  static BoxCacheTasks get cacheTasks => (_cacheTasks ??= BoxCacheTasks(BoxTableManager.cacheTableTasks));
 
   /// 初始化: 使用存储的表、每个Type的任务如何执行
   static void init() {
-    BoxCacheTasks.instance.table = BoxTableManager.cacheTableTasks;
-    BoxCacheTasks.instance.doTask = (BoxTaskFeign task) async {
-      BoxTaskResult? result;
-      try {
-        result = await BoxTasksManager._doOneTask(task);
-      } catch (e, s) {
-        BoxerLogger.e(TAG, 'Done doTask $task error: $e, $s');
-      }
-
-      bool isSuccess = result?.isSuccess ?? false;
-      BoxerLogger.i(TAG, 'Do a task$task ${isSuccess ? 'success' : 'failed'}');
+    BoxTasksManager.cacheTasks.doTask = (BoxTaskFeign task) async {
+      BoxTaskResult result = await BoxTasksManager._doOneTask(task);
+      BoxerLogger.i(TAG, 'Do a task$task ${result.isSuccess ? 'success' : 'failed'}');
 
       // Refresh view and toast the status
-      PageTasksTableState.refreshToastTaskDoneExecuteStatus(task, isSuccess);
-      return result ?? BoxTaskResult(false, null);
+      PageTasksTableState.refreshToastTaskDoneExecuteStatus(task, result.isSuccess);
+      return result;
     };
 
-    BoxCacheTasks.instance.init(() {
-      BoxTaskAspect interceptor = BoxTaskAspect();
+    BoxTaskAspect interceptor = BoxTaskAspect();
 
-      /// Do not do the HTTP task if network is disconnected
-      interceptor.mLoopBegin = (loopTasks, futureQueue) {
-        if (loopTasks.isEmpty) return;
-        BoxerLogger.i(TAG, 'Loop will start ${loopTasks.length} tasks, removing tasks that will not be executed ...');
-        if (_isNetworkOk == false) {
-          loopTasks.removeWhere((e) => BoxTaskType.isHttpType(e.type));
-          BoxerLogger.i(TAG, 'Network is down, after removing HTTP tasks, now count is (${loopTasks.length}) ...');
-        }
-        loopTasks.removeWhere((e) => BoxTasksManager.isDoingByMeNow(e.type, e.id));
-        BoxerLogger.i(TAG, 'After removing CALLER DOING tasks, now count is (${loopTasks.length}) ...');
-      };
+    /// Do not do the HTTP task if network is disconnected
+    interceptor.mLoopBegin = (loopTasks, futureQueue) {
+      if (loopTasks.isEmpty) return;
+      BoxerLogger.i(TAG, 'Loop will start ${loopTasks.length} tasks, removing tasks that will not be executed ...');
+      if (_isNetworkOk == false) {
+        loopTasks.removeWhere((e) => BoxTaskType.isHttpType(e.type));
+        BoxerLogger.i(TAG, 'Network is down, after removing HTTP tasks, now count is ${loopTasks.length} ...');
+      }
+      loopTasks.removeWhere((e) => BoxTasksManager.isDoingByMeNow(e.type, e.id));
+      BoxerLogger.i(TAG, 'After removing CALLER DOING tasks, now count is ${loopTasks.length} ...');
+    };
 
-      /// Notify the existed completer when the specified task is done
-      interceptor.mTaskEnd = (BoxTaskFeign task) {
-        () async {
-          if (await BoxCacheTasks.instance.isTaskExisted(taskType: task.type, taskId: task.id)) return;
-          Completer<BoxTaskResult>? completer = _removeCompleter(iBoxTaskKey(task.type, task.id));
-          completer?.complete(task.result ?? BoxTaskResult(false, null));
-        }();
-      };
-      BoxCacheTasks.instance.addInterceptor(interceptor);
-    });
+    /// Notify the existed completer when the specified task is done
+    interceptor.mTaskEnd = (BoxTaskFeign task) {
+      () async {
+        if (await BoxTasksManager.cacheTasks.isTaskExisted(taskType: task.type, taskId: task.id)) return;
+        Completer<BoxTaskResult>? completer = _removeCompleter(iBoxTaskKey(task.type, task.id));
+        completer?.complete(task.result ?? BoxTaskResult(false, null));
+      }();
+    };
+    BoxTasksManager.cacheTasks.addInterceptor(interceptor);
   }
 
   /// 执行单个缓存任务
   static Future<BoxTaskResult> _doOneTask(BoxTaskFeign task) async {
     BoxerLogger.d(TAG, '_doOneTask: ${task.toJson()}}');
-    String taskType = task.type;
+    BoxTaskResult? result;
 
-    dynamic result, error, stack;
+    String taskType = task.type;
+    dynamic response, error, stack;
     try {
       if (BoxTaskType.isHttpType(taskType)) {
-        await Future.delayed(const Duration(milliseconds: 2 * 1000));
-
         Map data = task.task.data;
         String method = (data['method']?.toString() ?? 'POST').toUpperCase();
         String path = data['path']?.toString() ?? data['url']?.toString() ?? '';
@@ -173,39 +170,41 @@ class BoxTasksManager {
         if (method == 'GET') {
           Uri uri = Uri.parse(path).replace(
               queryParameters: (query ?? body ?? {}).map((key, value) => MapEntry(key, value?.toString() ?? '')));
-          result = await http.get(uri); // GET 请求的参数可以放在 query 或 body 中，随便
+          response = await http.get(uri); // GET 请求的参数可以放在 query 或 body 中，随便
         } else if (method == 'POST') {
           Uri uri = Uri.parse(path)
               .replace(queryParameters: (query ?? {}).map((key, value) => MapEntry(key, value?.toString() ?? '')));
-          result = await http.post(uri, body: body); // 但 POST 就要严格了，参数 query 请求体 body
+          response = await http.post(uri, body: body); // 但 POST 就要严格了，参数 query 请求体 body
         }
 
+        await Future.delayed(const Duration(milliseconds: 2 * 1000));
         if (kDebugMode && _isNetworkOk == false) {
           throw SocketException('connection aborted: ${task.count}');
         }
 
-        BoxerLogger.d(TAG, '###### Response status: ${result.statusCode}, body: \n${result.body}');
-        return BoxTaskResult(true, result);
+        BoxerLogger.d(TAG, '###### Response status: ${response.statusCode}, body: \n${response.body}');
+        result = BoxTaskResult(true, response);
       } else if (taskType == 'WAIT_ME') {
         await Future.delayed(const Duration(milliseconds: 3 * 1000));
-        return BoxTaskResult(true, result);
+        result = BoxTaskResult(true, response);
       } else if (taskType == 'FAILED_TASK') {
         await Future.delayed(const Duration(milliseconds: 2 * 1000));
         throw const HandshakeException('❌ handshake error!');
       } else if (taskType == 'SHOULD_DO_CHECK') {
         await Future.delayed(const Duration(milliseconds: 1 * 1000));
-        return BoxTaskResult(true, result);
+        result = BoxTaskResult(true, response);
+      } else {
+        BoxerLogger.e(TAG, 'executing the unsupported task: ${task}');
+        result = BoxTaskResult(true, response);
       }
     } catch (e, s) {
       error = e;
       stack = s;
-      rethrow;
+      result ??= BoxTaskResult(false, response, error, stack);
     } finally {
-      notifyListeners(task, result, error, stack);
+      notifyListeners(task, response, error, stack);
     }
-
-    BoxerLogger.w(TAG, 'execute the not supported task: $task}');
-    return BoxTaskResult(false, result, error, stack);
+    return result;
   }
 
   /// 添加一个HTTP任务
@@ -214,7 +213,7 @@ class BoxTasksManager {
     String path, {
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
-    bool isBigHttp = true,
+    String taskType = BoxTaskType.HTTP_BIGGER,
     bool isHttpPost = true,
     bool isAsyncTask = false,
     int? maxRetryCount,
@@ -223,33 +222,36 @@ class BoxTasksManager {
     Map<String, dynamic> data = {'method': isHttpPost ? 'POST' : 'GET', 'path': path};
     if (body != null) data['body'] = body;
     if (query != null) data['query'] = query;
-    String type = BoxTaskType.getHttpType(isBigHttp);
-    BoxCacheTasks.instance.addTask(
-      BoxTask(type: type, id: taskId, isAsync: isAsyncTask, data: data),
+    BoxTasksManager.cacheTasks.addTask(
+      BoxTask(type: taskType, id: taskId, isAsync: isAsyncTask, data: data),
       maxCount: maxRetryCount,
     );
     if (isNeedFuture == true) {
       Completer<BoxTaskResult> completer = Completer();
-      _addCompleter(iBoxTaskKey(type, taskId), completer);
+      _addCompleter(iBoxTaskKey(taskType, taskId), completer);
       return completer.future;
     }
     return null;
   }
 
-  static void setHttpTaskDoingByMeNow(String taskId, {bool isBigHttp = true}) {
-    setDoingByMeNow(BoxTaskType.getHttpType(isBigHttp), taskId);
+  static void setHttpTaskDoingByMeNow(String id, {String type = BoxTaskType.HTTP_BIGGER}) {
+    setDoingByMeNow(type, id);
   }
 
-  static void removeHttpTaskDoingByMeNow(String taskId, bool isSuccess, {bool isBigHttp = true}) {
-    removeDoingByMeNow(BoxTaskType.getHttpType(isBigHttp), taskId, isSuccess);
+  static void removeHttpTaskDoingByMeNow(String id, bool isSuccess, {String type = BoxTaskType.HTTP_BIGGER}) {
+    removeDoingByMeNow(type, id, isSuccess);
   }
 }
 
 class BoxTaskType {
-  static const String HTTP_SMALL = "HTTP_SMALL";
-  static const String HTTP_BIGGER = "HTTP_BIGGER";
+  static const String _HTTP_PREFIX = "HTTP_";
+  static const String _HTTP_PREFIX_SMALL = "${_HTTP_PREFIX}S_";
+  static const String _HTTP_PREFIX_BIGGER = "${_HTTP_PREFIX}B_";
 
-  static bool isHttpType(String type) => type == BoxTaskType.HTTP_BIGGER || type == BoxTaskType.HTTP_SMALL;
+  static bool isHttpType(String type) => type.startsWith(_HTTP_PREFIX);
 
-  static String getHttpType([bool isBigHttp = true]) => isBigHttp ? BoxTaskType.HTTP_BIGGER : BoxTaskType.HTTP_SMALL;
+  static bool isBigHttpType(String type) => type.startsWith(_HTTP_PREFIX_BIGGER);
+
+  static const String HTTP_SMALL = "${_HTTP_PREFIX_SMALL}SMALL";
+  static const String HTTP_BIGGER = "${_HTTP_PREFIX_BIGGER}BIGGER";
 }

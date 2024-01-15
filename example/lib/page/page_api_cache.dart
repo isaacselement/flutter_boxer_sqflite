@@ -205,9 +205,9 @@ class PageApiCacheState extends State<PageApiCache> with WidgetsBindingObserver 
         updateToCache(value);
       },
       howToUpdateView: (value, bool isFromCache) {
-        Map<String, dynamic>? map = datasource.first;
-        map[TableView.keyTblRowCount] = value.length;
-        map[TableView.keyTblRowResults] = value;
+        Map<String, dynamic>? map = datasource.firstSafe;
+        map?[TableView.keyTblRowCount] = value.length;
+        map?[TableView.keyTblRowResults] = value;
         if (mounted) {
           setState(() {});
         }

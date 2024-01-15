@@ -116,6 +116,9 @@ class BoxTaskResult {
   final dynamic error, stack;
 
   BoxTaskResult(this.isSuccess, this.data, [this.error, this.stack]);
+
+  @override
+  String toString() => '$isSuccess, $data, $error';
 }
 
 abstract class BoxTaskInterceptor {
@@ -161,12 +164,8 @@ abstract class BoxTaskInterceptor {
 class BoxCacheTasks {
   static const String TAG = 'BoxCacheTasks';
 
-  static BoxCacheTasks? _instance;
-
-  static BoxCacheTasks get instance => _instance ??= BoxCacheTasks();
-
   /// Required, the table for persistent tasks
-  late BoxCacheTable table;
+  BoxCacheTable table;
 
   BoxCacheTable get mTable => table;
 
@@ -203,14 +202,8 @@ class BoxCacheTasks {
   /// Optional, max execute task retry count
   int kRetryLimitCount = 10;
 
-  /// Call init() after property `table` has been assigned
-  bool _isInited = false;
-
-  void init([VoidCallbackFunc? onInited]) {
-    if (_isInited) return;
-    _isInited = true;
-    onInited?.call();
-    mTable.setModelTranslator<BoxTaskFeign>(
+  BoxCacheTasks(this.table) {
+    table.setModelTranslator<BoxTaskFeign>(
       (Map e) => BoxTaskFeign.fromJson(e),
       (BoxTaskFeign e) => e.toJson(),
       (BoxTaskFeign e) => {BoxCacheTable.kCOLUMN_ITEM_TYPE: e.type, BoxCacheTable.kCOLUMN_ITEM_ID: e.id},
@@ -294,13 +287,15 @@ class BoxCacheTasks {
       translator: (Map<String, Object?> e) {
         String? type = e[BoxCacheTable.kCOLUMN_ITEM_TYPE]?.toString();
         String? id = e[BoxCacheTable.kCOLUMN_ITEM_ID]?.toString();
-        int? kind = int.tryParse(e[BoxCacheTaskTable.kCOLUMN_KIND]?.toString() ?? '');
-        if (type == null || id == null) return null;
-        return BoxUniqueRow(type: type, id: id, kind: BoxTaskKind.values[kind ?? 0]);
+        int? index = int.tryParse(e[BoxCacheTaskTable.kCOLUMN_KIND]?.toString() ?? '');
+        if (type == null || id == null || index == null) return null;
+        BoxTaskKind kind =
+            index < 0 || index >= BoxTaskKind.values.length ? BoxTaskKind.SYNC : BoxTaskKind.values[index];
+        return BoxUniqueRow(type: type, id: id, kind: kind);
       },
     );
     List<BoxUniqueRow> results = List<BoxUniqueRow>.from(list.where((e) => e != null).toList());
-    // 把异步任务的放到前面，则会一次性执行异步任务，然后同步任务一个等一个完成后执行
+    // 倒序排序, 把 ASYNC 异步任务的放到前面，则会一次性执行异步任务，然后同步任务一个等一个完成后执行
     results.sort((a, b) => b.kind.index.compareTo(a.kind.index));
     return results;
   }
@@ -353,7 +348,7 @@ class BoxCacheTasks {
       /// 做完一轮任务后，再次检查是否有新任务插入/或有任务失败了，有则再次执行一轮任务
       futuresQueue.addListener(() async {
         autoStartInterval++;
-        logger.i(TAG, "🟢 All done, recursive [start] checking has new/failed task or not? $autoStartInterval");
+        logger.i(TAG, "🟢 All done, recursive [start] checking has new/failed task or not? ${autoStartInterval}s");
         if (autoStartInterval > 60) {
           logger.mark(tag: '__tasks_recursive_a_lot__', object: autoStartInterval);
           logger.w(TAG, "Recursive start tasks a lot: $autoStartInterval");
@@ -450,7 +445,7 @@ class BoxCacheTasks {
     int limitCount = feign.maxCount > 0 ? feign.maxCount : kRetryLimitCount;
     bool isExceedLimit = feign.count > limitCount;
     if (isExceedLimit) {
-      Map object = {...feign.toJson(), 'limitCount': limitCount};
+      Map object = {...feign.toJson(), 'limitCount': limitCount, 'result': result.toString()};
       logger.mark(tag: '__task_execute_exceeded_limit__', object: object);
       logger.w(TAG, "Task retry count exceeded: $object");
     }

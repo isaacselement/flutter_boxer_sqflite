@@ -44,9 +44,9 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
         BoxCacheTable table = mTable.cloneInstance as BoxCacheTable;
         table.isUserIdConcerned = false;
         table.isRoleIdConcerned = false;
-        BoxCacheTasks.instance.table = table;
+        BoxTasksManager.cacheTasks.table = table;
       } else {
-        BoxCacheTasks.instance.table = mTable;
+        BoxTasksManager.cacheTasks.table = mTable;
       }
     });
   }
@@ -169,10 +169,10 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
                 onPressed: () async {
                   List<Map> sheet = [
                     action(Icons.stop_circle_outlined, 'Stop', (Map action) async {
-                      BoxCacheTasks.instance.stop();
+                      BoxTasksManager.cacheTasks.stop();
                     }),
                     action(Icons.play_circle_outlined, 'Resume', (Map action) async {
-                      BoxCacheTasks.instance.resume();
+                      BoxTasksManager.cacheTasks.resume();
                     }),
                     action(Icons.clear_outlined, 'Clear self', (Map action) async {
                       await mTable.delete(); // care about the userId & roleId
@@ -205,13 +205,13 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
               CupertinoButton(
                 onPressed: wrapPress(() async {
                   BoxTaskFeign? httpTask =
-                      await BoxCacheTasks.instance.mTable.last<BoxTaskFeign>(type: BoxTaskType.HTTP_BIGGER);
+                      await BoxTasksManager.cacheTasks.mTable.last<BoxTaskFeign>(type: BoxTaskType.HTTP_BIGGER);
                   if (httpTask != null) {
                     BoxTask task = httpTask.task;
                     task.data['method'] = 'POST';
                     task.data['path'] = null;
                     task.data['url'] = 'http://ip-api.com/json/24.48.0.1?fields=61439';
-                    BoxCacheTasks.instance.addTask(task);
+                    BoxTasksManager.cacheTasks.addTask(task);
                   }
                 }),
                 child: const Text('Add a same http task', style: TextStyle(fontWeight: FontWeight.w300)),
@@ -242,21 +242,21 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
                       }
                     }),
                     action(Icons.one_k, 'Add a 2s Task', (Map action) async {
-                      BoxCacheTasks.instance.addTask(BoxTask(
+                      BoxTasksManager.cacheTasks.addTask(BoxTask(
                         type: 'WAIT_ME',
                         id: '${DateTime.now().millisecondsSinceEpoch}',
                         data: {},
                       ));
                     }),
                     action(Icons.one_k, 'Add a should do check Task', (Map action) async {
-                      BoxCacheTasks.instance.addTask(BoxTask(
+                      BoxTasksManager.cacheTasks.addTask(BoxTask(
                         type: 'SHOULD_DO_CHECK',
                         id: '${DateTime.now().millisecondsSinceEpoch}',
                         data: {},
                       ));
                     }),
                     action(Icons.one_k, 'Add always failed Task', (Map action) async {
-                      BoxCacheTasks.instance.addTask(
+                      BoxTasksManager.cacheTasks.addTask(
                         BoxTask(
                           type: 'FAILED_TASK',
                           id: '${DateTime.now().millisecondsSinceEpoch}',
@@ -265,7 +265,7 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
                       );
                     }),
                     action(Icons.one_k, 'Add always failed Task (3)', (Map action) async {
-                      BoxCacheTasks.instance.addTask(
+                      BoxTasksManager.cacheTasks.addTask(
                         BoxTask(
                           type: 'FAILED_TASK',
                           id: '${DateTime.now().millisecondsSinceEpoch}',
@@ -274,21 +274,21 @@ class PageTasksTableState extends State<PageTasksTable> with WidgetsBindingObser
                         maxCount: 3,
                       );
                     }),
-                    action(Icons.one_k, 'Add 10 async task', (Map action) async {
+                    action(Icons.one_k, 'Add 10 async/sync task', (Map action) async {
                       List<BoxTask> tasks = [];
                       for (int i = 0; i < 10; i++) {
                         String taskId = (DateTime.now().millisecondsSinceEpoch + i).toString();
                         BoxTask task = BoxTask(
                           type: BoxTaskType.HTTP_SMALL,
                           id: taskId,
-                          isAsync: true,
+                          isAsync: Random().nextBool(),
                           data: {'id': taskId, 'method': 'GET', 'url': 'http://myip.ipip.net/'},
                         );
                         tasks.add(task);
                       }
                       tasks.shuffle();
                       for (BoxTask task in tasks) {
-                        BoxCacheTasks.instance.addTask(task);
+                        BoxTasksManager.cacheTasks.addTask(task);
                       }
                     }),
                   ];
