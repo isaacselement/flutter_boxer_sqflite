@@ -1,3 +1,7 @@
+# 1.1.4
+
+*  Update README.md
+
 # 1.1.3
 
 *  Improved the tasks manager
