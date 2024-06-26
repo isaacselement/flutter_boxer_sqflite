@@ -1,3 +1,7 @@
+# 1.1.5
+
+*  Upgrade `synchronized_call` version to 1.1.0
+
 # 1.1.4
 
 *  Update README.md

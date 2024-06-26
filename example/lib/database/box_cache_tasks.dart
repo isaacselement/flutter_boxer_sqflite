@@ -122,7 +122,7 @@ class BoxTaskResult {
 }
 
 abstract class BoxTaskInterceptor {
-  void loopBegin(List<BoxUniqueRow> loopTasks, FutureQueue futureQueue);
+  void loopBegin(List<BoxUniqueRow> loopTasks, QueueFuture futureQueue);
 
   void loopEnd(dynamic e, dynamic s);
 
@@ -131,7 +131,7 @@ abstract class BoxTaskInterceptor {
   void taskEnd(BoxTaskFeign task);
 
   /// Util methods
-  static void callLoopBegin(List<BoxTaskInterceptor> list, List<BoxUniqueRow> loopTasks, FutureQueue futureQueue) {
+  static void callLoopBegin(List<BoxTaskInterceptor> list, List<BoxUniqueRow> loopTasks, QueueFuture futureQueue) {
     for (int i = 0; i < list.length; i++) {
       list[i].loopBegin(loopTasks, futureQueue);
     }
@@ -179,7 +179,7 @@ class BoxCacheTasks {
 
   void removeInterceptor(BoxTaskInterceptor interceptor) => interceptors.remove(interceptor);
 
-  void _doInterceptorsOnLoopBegin(List<BoxUniqueRow> loopTasks, FutureQueue futureQueue) {
+  void _doInterceptorsOnLoopBegin(List<BoxUniqueRow> loopTasks, QueueFuture futureQueue) {
     BoxTaskInterceptor.callLoopBegin(interceptors, loopTasks, futureQueue);
   }
 
@@ -327,7 +327,7 @@ class BoxCacheTasks {
     isStarted = true;
 
     dynamic error, stack;
-    FutureQueue? futuresQueue;
+    QueueFuture? futuresQueue;
 
     try {
       /// 事先拿出任务列表，避免在执行过程中有新任务插入，最近更新过的放在列表更后，按更新时间ASC排序
@@ -335,7 +335,7 @@ class BoxCacheTasks {
       doingTasks = tasks;
       logger.i(TAG, "❎ --- TASKS START: ${tasks.length} ---");
 
-      futuresQueue = FutureQueue();
+      futuresQueue = QueueFuture();
       _doInterceptorsOnLoopBegin(tasks, futuresQueue);
       int count = tasks.length;
 

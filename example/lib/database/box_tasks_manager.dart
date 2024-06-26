@@ -12,13 +12,13 @@ import 'package:synchronized_call/synchronized_call.dart';
 typedef BoxTaskCallback = void Function(BoxTaskFeign task, dynamic result, dynamic e, dynamic s);
 
 class BoxTaskAspect extends BoxTaskInterceptor {
-  void Function(List<BoxUniqueRow> loopTasks, FutureQueue futureQueue)? mLoopBegin;
+  void Function(List<BoxUniqueRow> loopTasks, QueueFuture futureQueue)? mLoopBegin;
   void Function(dynamic e, dynamic s)? mLoopEnd;
   Future<bool> Function(BoxTaskFeign task)? mTaskBegin;
   void Function(BoxTaskFeign task)? mTaskEnd;
 
   @override
-  void loopBegin(List<BoxUniqueRow> loopTasks, FutureQueue futureQueue) => mLoopBegin?.call(loopTasks, futureQueue);
+  void loopBegin(List<BoxUniqueRow> loopTasks, QueueFuture futureQueue) => mLoopBegin?.call(loopTasks, futureQueue);
 
   @override
   void loopEnd(e, s) => mLoopEnd?.call(e, s);

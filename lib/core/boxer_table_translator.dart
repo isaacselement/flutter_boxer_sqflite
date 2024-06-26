@@ -218,7 +218,7 @@ abstract class BoxerTableTranslator extends BoxerTableInterceptor
   }
 
   /// Using the lock, for making `Clear and Insert` jobs execute in serial queue
-  CallLock callLock4ResetItems = CallLock.create();
+  BaseLock callLock4ResetItems = CallLock.create();
 
   /// Do clear & insert operation. [option] for clear filter, [translator] for insertion transform
   Future<List<Object?>?> resetWithItems<T>(
